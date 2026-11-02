@@ -1,75 +1,40 @@
-# React + TypeScript + Vite
+# OBSIDIAN PC CLUB — Клієнтський фронтенд (Тиждень 1. Каркас)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Розробник:** Михайло (`client`, Docker Compose, GitHub Actions CI)  
+**Стек:** React 19, TypeScript, Vite, Tailwind CSS.
 
-Currently, two official plugins are available:
+## Що реалізовано в Тижні 1
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. **Каркас клієнта (`client/`):**
+   - Підключено **Tailwind CSS** (`@tailwindcss/vite`).
+   - **Заставка (Splash)** за вайрфреймом **OBSIDIAN PC CLUB** на чистому Tailwind CSS.
+   - **Короткий онбординг (3 кроки)**: ігрові зони (PC / PS5 / VR), правила бронювання й пакет `3+1`, керування живою сесією, бар «Димочок» та турніри.
+   - **Перемикач мови (`UA` / `EN`)** виключно для підписів оболонки (шапка, навігація оболонки, статус-бар). Основні тексти інтерфейсу — українською мовою.
+   - **Клієнт OpenAPI скелета (`src/api/openapiClient.ts`)**: звертається до заглушок скелета OpenAPI (`/api/health`, `/api/settings/public`, `/api/zones`, `/api/tariffs`), підтримує підстановку JWT-токена та узгоджені Enum Тижня 1 (`PlaceStatus`, `PaymentMethod`, `OrderStatus`, `TournamentStatus`).
 
-## React Compiler
+2. **Docker Compose (`docker-compose.yml` у корені репозиторію):**
+   - Піднімає чотири сервіси: `postgres`, `backend`, `admin`, `client`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+3. **GitHub Actions CI (`.github/workflows/ci.yml` у корені репозиторію):**
+   - На `push` та `pull_request` виконує `lint` і `build` усіх трьох частин (`client`, `admin`, `backend`).
 
-## Expanding the ESLint configuration
+## Локальний запуск клієнта
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+cd client
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+Перевірка лінтера та збірки:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+npm run lint
+npm run build
+```
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Запуск усього проєкту через Docker Compose з кореня репозиторію:
 
+```bash
+docker compose up --build
 ```
