@@ -1,12 +1,12 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: senet_postgres
-    restart: always
+    container_name: obsidian_postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: senet_clone
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-senet_clone}
     ports:
       - "5432:5432"
     volumes:
@@ -15,7 +15,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U postgres -d senet_clone"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
 volumes:
   postgres_data:
