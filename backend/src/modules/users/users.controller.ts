@@ -1,18 +1,46 @@
-import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { UpdateProfileDto, UpdateUserStatusDto } from './dto/users.dto';
+import { UsersService } from './users.service';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { UserRole } from '@prisma/client';
 
 @ApiTags('Users')
 @ApiBearerAuth('JWT-auth')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('users')
 export class UsersController {
+  constructor(private readonly usersService: UsersService) {}
+
   @Get()
-  @ApiOperation({ summary: 'Список користувачів клубу (пошук, фільтри, пагінація)' })
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Список користувачів клубу (пошук, фільтри, пагінація) — доступно для ADMIN' })
   @ApiQuery({ name: 'search', required: false, description: 'Пошук за ніком, email або телефоном' })
-  @ApiQuery({ name: 'role', required: false, enum: ['OWNER', 'ADMIN', 'CLIENT'] })
+  @ApiQuery({ name: 'role', required: false, enum: ['ADMIN', 'CLIENT'] })
   @ApiQuery({ name: 'status', required: false, enum: ['ACTIVE', 'BLOCKED'] })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 20 })
+  @ApiResponse({ status: 200, description: 'Список користувачів' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden (недостатньо прав)' })
   getUsers(
     @Query('search') search?: string,
     @Query('role') role?: string,
@@ -20,75 +48,51 @@ export class UsersController {
     @Query('page') page = 1,
     @Query('limit') limit = 20,
   ) {
-    return {
-      items: [
-        {
-          id: '1',
-          username: 's1mple_pro',
-          email: 'player1@gmail.com',
-          phone: '+380993334455',
-          role: 'CLIENT',
-          status: 'ACTIVE',
-          balance: 350.0,
-          totalPlayTimeMinutes: 720,
-          visitsCount: 12,
-        },
-        {
-          id: '2',
-          username: 'b1t_clutch',
-          email: 'player2@gmail.com',
-          phone: '+380994445566',
-          role: 'CLIENT',
-          status: 'ACTIVE',
-          balance: 120.0,
-          totalPlayTimeMinutes: 300,
-          visitsCount: 5,
-        },
-      ],
-      total: 2,
-      page: Number(page),
-      limit: Number(limit),
-    };
+    return this.usersService.findAll({ search, role, status, page, limit });
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Детальна інформація профілю користувача' })
-  getUserById(@Param('id') id: string) {
+  @Roles(UserRole.ADMIN, UserRole.CLIENT)
+  @ApiOperation({ summary: 'Детальна інформація профілю користувача за ID' })
+  @ApiResponse({ status: 200, description: 'Профіль користувача' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Користувача не знайдено' })
+  async getUserById(@Param('id') id: string) {
+    const user = await this.usersService.findById(id);
+    if (!user) {
+      throw new NotFoundException('Користувача не знайдено');
+    }
+    return this.usersService.sanitize(user);
+  }
+
+  @Patch('profile')
+  @Roles(UserRole.ADMIN, UserRole.CLIENT)
+  @ApiOperation({ summary: 'Оновлення власного профілю поточним авторизованим користувачем' })
+  @ApiResponse({ status: 200, description: 'Профіль успішно оновлено' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async updateProfile(
+    @CurrentUser('id') userId: string,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    const updated = await this.usersService.updateProfile(userId, dto);
     return {
-      id,
-      username: 's1mple_pro',
-      email: 'player1@gmail.com',
-      phone: '+380993334455',
-      firstName: 'Олександр',
-      lastName: 'Костилєв',
-      role: 'CLIENT',
-      status: 'ACTIVE',
-      balance: 350.0,
-      bonusBalance: 50.0,
-      totalPlayTimeMinutes: 720,
-      totalSpent: 850.0,
-      visitsCount: 12,
-      createdAt: '2026-10-01T12:00:00.000Z',
+      message: 'Профіль успішно оновлено',
+      user: this.usersService.sanitize(updated),
     };
   }
 
   @Patch(':id/status')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Блокування або розблокування гравця адміністратором' })
+  @ApiResponse({ status: 200, description: 'Статус гравця успішно змінено' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden (необхідна роль ADMIN)' })
   updateStatus(@Param('id') id: string, @Body() dto: UpdateUserStatusDto) {
     return {
       id,
       status: dto.status,
       reason: dto.reason || null,
       message: `Статус гравця успішно змінено на ${dto.status}`,
-    };
-  }
-
-  @Patch('profile')
-  @ApiOperation({ summary: 'Оновлення власного профілю гравцем' })
-  updateProfile(@Body() dto: UpdateProfileDto) {
-    return {
-      message: 'Профіль успішно оновлено',
-      updatedData: dto,
     };
   }
 }
