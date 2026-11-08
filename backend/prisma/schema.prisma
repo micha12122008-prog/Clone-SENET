@@ -1,0 +1,432 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// -------------------------------------------------------------
+// ENUMS (зафіксовані в ТЗ куратора, які далі не перейменовуємо)
+// -------------------------------------------------------------
+
+enum PlaceStatus {
+  FREE        @map("вільно")
+  BUSY        @map("зайнято")
+  BOOKED      @map("бронь")
+  MAINTENANCE @map("ремонт")
+}
+
+enum PaymentMethod {
+  CASH    @map("готівка")
+  CARD    @map("картка")
+  BALANCE @map("баланс")
+}
+
+enum OrderStatus {
+  new
+  preparing
+  issued
+}
+
+enum TournamentStatus {
+  REGISTRATION @map("реєстрація")
+  LIVE         @map("live")
+  COMPLETED    @map("завершено")
+}
+
+enum UserRole {
+  CLIENT
+  ADMIN
+}
+
+enum DeviceType {
+  PC
+  PS
+  VR
+}
+
+enum TariffType {
+  HOURLY
+  PACKAGE_3_PLUS_1
+  CUSTOM
+}
+
+// -------------------------------------------------------------
+// 18 ТАБЛИЦЬ (відповідно до вимог ТЗ Тижня 1)
+// -------------------------------------------------------------
+
+// 1. Користувачі
+model User {
+  id                   String                  @id @default(uuid())
+  email                String                  @unique
+  phone                String                  @unique
+  username             String                  @unique
+  passwordHash         String                  @map("password_hash")
+  firstName            String?                 @map("first_name")
+  lastName             String?                 @map("last_name")
+  birthDate            DateTime?               @map("birth_date")
+  avatarUrl            String?                 @map("avatar_url")
+  avatarFrame          String?                 @map("avatar_frame")
+  bannerUrl            String?                 @map("banner_url")
+  role                 UserRole                @default(CLIENT)
+  balance              Decimal                 @default(0.00) @db.Decimal(10, 2)
+  bonusBalance         Decimal                 @default(0.00) @map("bonus_balance") @db.Decimal(10, 2)
+  totalPlayTimeMinutes Int                     @default(0) @map("total_play_time_minutes")
+  totalSpent           Decimal                 @default(0.00) @map("total_spent") @db.Decimal(10, 2)
+  createdAt            DateTime                @default(now()) @map("created_at")
+  updatedAt            DateTime                @updatedAt @map("updated_at")
+
+  sessions             Session[]
+  bookings             Booking[]
+  balanceLedger        BalanceLedger[]
+  payments             Payment[]
+  orders               Order[]
+  notifications        Notification[]
+  achievements         UserAchievement[]
+  applications         TournamentApplication[]
+  reviews              Review[]
+
+  @@map("users")
+}
+
+// 2. Зони
+model Zone {
+  id             String      @id @default(uuid())
+  name           String      @unique
+  description    String?
+  deviceType     DeviceType  @default(PC) @map("device_type")
+  baseHourlyRate Decimal     @default(60.00) @map("base_hourly_rate") @db.Decimal(10, 2)
+  colorHex       String      @default("#3B82F6") @map("color_hex")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  places         Place[]
+  tariffs        Tariff[]
+
+  @@map("zones")
+}
+
+// 3. Місця
+model Place {
+  id          String      @id @default(uuid())
+  number      Int         @unique
+  name        String
+  zoneId      String      @map("zone_id")
+  status      PlaceStatus @default(FREE)
+  specs       Json?
+  coordinateX Float       @default(0) @map("coordinate_x")
+  coordinateY Float       @default(0) @map("coordinate_y")
+  row         Int         @default(1)
+  col         Int         @default(1)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  zone        Zone        @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  sessions    Session[]
+  bookings    Booking[]
+  repairs     Repair[]
+
+  @@map("places")
+}
+
+// 4. Тарифи
+model Tariff {
+  id              String      @id @default(uuid())
+  name            String
+  description     String?
+  type            TariffType  @default(HOURLY)
+  zoneId          String?     @map("zone_id")
+  price           Decimal     @db.Decimal(10, 2)
+  durationMinutes Int         @default(60) @map("duration_minutes")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  zone            Zone?       @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  sessions        Session[]
+  bookings        Booking[]
+
+  @@map("tariffs")
+}
+
+// 5. Ремонти (журнал ремонту)
+model Repair {
+  id          String    @id @default(uuid())
+  placeId     String    @map("place_id")
+  description String
+  startedAt   DateTime  @default(now()) @map("started_at")
+  finishedAt  DateTime? @map("finished_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  place       Place     @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@map("repairs")
+}
+
+// 6. Броні
+model Booking {
+  id            String         @id @default(uuid())
+  userId        String         @map("user_id")
+  placeId       String         @map("place_id")
+  tariffId      String         @map("tariff_id")
+  startTime     DateTime       @map("start_time")
+  endTime       DateTime       @map("end_time")
+  isPackage3Plus1 Boolean      @default(false) @map("is_package_3_plus_1")
+  prepaidAmount Decimal        @default(0.00) @map("prepaid_amount") @db.Decimal(10, 2)
+  isPaidOnline  Boolean        @default(false) @map("is_paid_online")
+  qrCode        String?        @unique @map("qr_code")
+  holdExpiresAt DateTime?      @map("hold_expires_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  place         Place          @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  tariff        Tariff         @relation(fields: [tariffId], references: [id], onDelete: Cascade)
+  extras        BookingExtra[]
+  session       Session?
+
+  @@map("bookings")
+}
+
+// 7. Допи до броні (додаткові послуги під час бронювання)
+model BookingExtra {
+  id        String   @id @default(uuid())
+  bookingId String   @map("booking_id")
+  name      String
+  price     Decimal  @db.Decimal(10, 2)
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("booking_extras")
+}
+
+// 8. Сесії
+model Session {
+  id               String    @id @default(uuid())
+  userId           String?   @map("user_id")
+  placeId          String    @map("place_id")
+  tariffId         String    @map("tariff_id")
+  bookingId        String?   @unique @map("booking_id")
+  startedByAdminId String?   @map("started_by_admin_id")
+  startTime        DateTime  @default(now()) @map("start_time")
+  pausedAt         DateTime? @map("paused_at")
+  pausedDurationSec Int      @default(0) @map("paused_duration_sec")
+  plannedEndTime   DateTime? @map("planned_end_time")
+  actualEndTime    DateTime? @map("actual_end_time")
+  isActive         Boolean   @default(true) @map("is_active")
+  isPaused         Boolean   @default(false) @map("is_paused")
+  totalCost        Decimal   @default(0.00) @map("total_cost") @db.Decimal(10, 2)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  user             User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  place            Place     @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  tariff           Tariff    @relation(fields: [tariffId], references: [id], onDelete: Restrict)
+  booking          Booking?  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  orders           Order[]
+  review           Review?
+
+  @@map("sessions")
+}
+
+// 9. Меню
+model MenuItem {
+  id          String      @id @default(uuid())
+  name        String
+  category    String
+  description String?
+  price       Decimal     @db.Decimal(10, 2)
+  isAvailable Boolean     @default(true) @map("is_available")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  orderItems  OrderItem[]
+
+  @@map("menu")
+}
+
+// 10. Замовлення
+model Order {
+  id          String        @id @default(uuid())
+  userId      String?       @map("user_id")
+  sessionId   String?       @map("session_id")
+  placeNumber Int?          @map("place_number")
+  status      OrderStatus   @default(new)
+  totalAmount Decimal       @default(0.00) @map("total_amount") @db.Decimal(10, 2)
+  paymentType PaymentMethod @default(BALANCE) @map("payment_type")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  user        User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  session     Session?      @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  items       OrderItem[]
+
+  @@map("orders")
+}
+
+// 11. Позиції замовлення
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String   @map("order_id")
+  menuItemId String   @map("menu_item_id")
+  quantity   Int      @default(1)
+  unitPrice  Decimal  @map("unit_price") @db.Decimal(10, 2)
+  subtotal   Decimal  @db.Decimal(10, 2)
+
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+
+  @@map("order_items")
+}
+
+// 12. Журнал балансу
+model BalanceLedger {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  amount        Decimal  @db.Decimal(10, 2)
+  balanceBefore Decimal  @map("balance_before") @db.Decimal(10, 2)
+  balanceAfter  Decimal  @map("balance_after") @db.Decimal(10, 2)
+  description   String
+  isCashAdmin   Boolean  @default(false) @map("is_cash_admin")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("balance_ledger")
+}
+
+// 13. Платежі
+model Payment {
+  id        String        @id @default(uuid())
+  userId    String        @map("user_id")
+  amount    Decimal       @db.Decimal(10, 2)
+  method    PaymentMethod @default(BALANCE)
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+// 14. Турніри
+model Tournament {
+  id              String                 @id @default(uuid())
+  title           String
+  game            String
+  format          String
+  status          TournamentStatus       @default(REGISTRATION)
+  prizePool       Decimal                @default(0.00) @map("prize_pool") @db.Decimal(10, 2)
+  entryFee        Decimal                @default(0.00) @map("entry_fee") @db.Decimal(10, 2)
+  maxSlots        Int                    @default(16) @map("max_slots")
+  startTime       DateTime               @map("start_time")
+  streamUrl       String?                @map("stream_url")
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+
+  matches         Match[]
+  applications    TournamentApplication[]
+
+  @@map("tournaments")
+}
+
+// 15. Матчі
+model Match {
+  id           String     @id @default(uuid())
+  tournamentId String     @map("tournament_id")
+  orderIndex   Int        @map("order_index")
+  participant1 String     @map("participant_1")
+  participant2 String     @map("participant_2")
+  score1       Int        @default(0) @map("score_1")
+  score2       Int        @default(0) @map("score_2")
+  winnerName   String?    @map("winner_name")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@map("matches")
+}
+
+// 16. Заявки (на турнір)
+model TournamentApplication {
+  id           String     @id @default(uuid())
+  tournamentId String     @map("tournament_id")
+  userId       String     @map("user_id")
+  teamName     String?    @map("team_name")
+  teamMembers  String[]   @default([]) @map("team_members")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, userId])
+  @@map("tournament_applications")
+}
+
+// 17. Досягнення (рівно 4 за правилами ТЗ)
+model Achievement {
+  id          String            @id @default(uuid())
+  code        String            @unique
+  title       String
+  description String
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  users       UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(uuid())
+  userId        String      @map("user_id")
+  achievementId String      @map("achievement_id")
+  unlockedAt    DateTime    @default(now()) @map("unlocked_at")
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+// 18. Сповіщення
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  title     String
+  message   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// Допоміжна сутність для відгуків (після сесії)
+model Review {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  sessionId String?  @unique @map("session_id")
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session   Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@map("reviews")
+}
+
+// Налаштування клубу
+model ClubSettings {
+  id           String   @id @default(uuid())
+  clubName     String   @default("Obsidian PC CLUB") @map("club_name")
+  address      String   @default("м. Київ, вул. Вадима Гетьмана, 1-Б")
+  workingHours String   @default("24/7") @map("working_hours")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("club_settings")
+}
