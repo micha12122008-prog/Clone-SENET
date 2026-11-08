@@ -1,0 +1,87 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: obsidian_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-senet_clone}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d senet_clone"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile_inline: |
+        FROM node:22-alpine
+        WORKDIR /app
+        RUN apk add --no-cache openssl
+        COPY package*.json ./
+        RUN npm install
+        COPY . .
+        RUN if [ -f prisma/schema.prisma ]; then npx prisma generate && npm run build; fi
+        EXPOSE 5000
+        CMD ["sh", "-c", "if [ -f prisma/schema.prisma ]; then npx prisma migrate deploy && npm run start:prod; else node -e \"require('http').createServer((req,res)=>{res.writeHead(200,{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'});res.end(JSON.stringify({success:true,statusCode:200,data:{status:'ok',service:'Obsidian PC CLUB API Stub'}}));}).listen(5000,()=>console.log('Backend stub listening on 5000'))\"; fi"]
+    container_name: obsidian_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 5000
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/senet_clone?schema=public
+      JWT_ACCESS_SECRET: senet_super_secret_jwt_access_key_2026
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_SECRET: senet_super_secret_jwt_refresh_key_2026
+      JWT_REFRESH_EXPIRES_IN: 30d
+      CORS_ORIGIN: http://localhost:3000,http://localhost:5173,http://localhost:5174
+    ports:
+      - "5000:5000"
+
+  admin:
+    build:
+      context: ./admin
+      dockerfile_inline: |
+        FROM node:22-alpine
+        WORKDIR /app
+        COPY package*.json ./
+        RUN npm install
+        COPY . .
+        EXPOSE 5174
+        CMD ["npx", "vite", "--host", "0.0.0.0", "--port", "5174"]
+    container_name: obsidian_admin
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:5000/api
+    ports:
+      - "3000:5174"
+      - "5174:5174"
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: obsidian_client
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:5000/api
+    ports:
+      - "5173:5173"
+
+volumes:
+  postgres_data:
+    driver: local
+

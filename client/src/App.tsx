@@ -1,121 +1,222 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useCallback, useEffect, useState } from 'react'
+import {
+  OPENAPI_FALLBACK_HEALTH,
+  OPENAPI_FALLBACK_SETTINGS,
+  OPENAPI_FALLBACK_TARIFFS,
+  OPENAPI_FALLBACK_ZONES,
+  fetchOpenApiSkeleton,
+} from './api/openapiClient'
+import { OnboardingScreen } from './components/OnboardingScreen'
+import { OpenApiStubView } from './components/OpenApiStubView'
+import { SplashScreen } from './components/SplashScreen'
+import { SHELL_LABELS, type ShellLocale } from './i18n/shellLabels'
+import type { OpenApiSkeletonState } from './types/openapi'
 
-function App() {
-  const [count, setCount] = useState(0)
+type ClientScreenView = 'splash' | 'onboarding' | 'openapi'
+
+export function App() {
+  const [activeView, setActiveView] = useState<ClientScreenView>('splash')
+  const [shellLocale, setShellLocale] = useState<ShellLocale>('uk')
+  const [isLoadingApi, setIsLoadingApi] = useState<boolean>(true)
+  const [apiState, setApiState] = useState<OpenApiSkeletonState>(() => ({
+    source: 'openapi-stub',
+    baseUrl: (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:5000/api',
+    health: OPENAPI_FALLBACK_HEALTH,
+    settings: OPENAPI_FALLBACK_SETTINGS,
+    zones: OPENAPI_FALLBACK_ZONES,
+    tariffs: OPENAPI_FALLBACK_TARIFFS,
+    loadedAt: new Date().toLocaleTimeString('uk-UA'),
+  }))
+
+  const loadSkeletonData = useCallback(async () => {
+    setIsLoadingApi(true)
+    const state = await fetchOpenApiSkeleton()
+    setApiState(state)
+    setIsLoadingApi(false)
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    fetchOpenApiSkeleton().then((state) => {
+      if (mounted) {
+        setApiState(state)
+        setIsLoadingApi(false)
+      }
+    })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const labels = SHELL_LABELS[shellLocale]
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="flex min-h-svh flex-col bg-zinc-950 text-zinc-100">
+      {/* Верхня оболонка клієнта (підписи оболонки перекладаються перемикачем UA/EN) */}
+      <header className="sticky top-0 z-30 border-b border-zinc-800/90 bg-zinc-950/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          {/* Брендинг оболонки */}
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-violet-500/40 bg-violet-500/15 font-mono text-sm font-extrabold text-violet-300">
+              OB
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold tracking-wide text-white">
+                  OBSIDIAN PC CLUB
+                </span>
+                <span className="hidden rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[11px] font-medium text-zinc-300 sm:inline-block">
+                  {labels.appBadge}
+                </span>
+              </div>
+              <div className="text-[11px] text-zinc-400">{labels.weekBadge}</div>
+            </div>
+          </div>
 
-      <div className="ticks"></div>
+          {/* Навігація оболонки між Заставкою, Онбордингом і Скелетом OpenAPI */}
+          <nav aria-label="Навігація оболонки" className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setActiveView('splash')}
+              className={`cursor-pointer rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
+                activeView === 'splash'
+                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/30'
+                  : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
+              }`}
+            >
+              {labels.navSplash}
+            </button>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+            <button
+              type="button"
+              onClick={() => setActiveView('onboarding')}
+              className={`cursor-pointer rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
+                activeView === 'onboarding'
+                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/30'
+                  : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
+              }`}
+            >
+              {labels.navOnboarding}
+            </button>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+            <button
+              type="button"
+              onClick={() => setActiveView('openapi')}
+              className={`cursor-pointer rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
+                activeView === 'openapi'
+                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/30'
+                  : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
+              }`}
+            >
+              {labels.navApiContract}
+            </button>
+          </nav>
+
+          {/* Статус API та перемикач мови виключно для підписів оболонки */}
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/90 px-3 py-1.5 text-xs md:flex">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  apiState.source === 'live-api' ? 'bg-emerald-400' : 'bg-amber-400'
+                }`}
+              />
+              <span className="text-zinc-400">{labels.apiStatusLabel}:</span>
+              <span className="font-medium text-zinc-200">
+                {apiState.source === 'live-api' ? labels.apiConnected : labels.apiStubFallback}
+              </span>
+            </div>
+
+            <div
+              className="flex items-center gap-1 rounded-xl border border-zinc-800 bg-zinc-900 p-1"
+              title={labels.langSwitchHint}
+            >
+              <span className="hidden px-2 text-[11px] text-zinc-400 lg:inline">
+                {labels.langSwitchHint}:
+              </span>
+              <button
+                type="button"
+                onClick={() => setShellLocale('uk')}
+                aria-pressed={shellLocale === 'uk'}
+                className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                  shellLocale === 'uk'
+                    ? 'bg-violet-600 text-white'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                UA
+              </button>
+              <button
+                type="button"
+                onClick={() => setShellLocale('en')}
+                aria-pressed={shellLocale === 'en'}
+                className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                  shellLocale === 'en'
+                    ? 'bg-violet-600 text-white'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                EN
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Основна область контенту (тексти інтерфейсу українською) */}
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-4 py-4 sm:px-6">
+        {activeView === 'splash' && (
+          <SplashScreen
+            apiState={apiState}
+            isLoadingApi={isLoadingApi}
+            onStartOnboarding={() => setActiveView('onboarding')}
+            onOpenApiContract={() => setActiveView('openapi')}
+          />
+        )}
+
+        {activeView === 'onboarding' && (
+          <OnboardingScreen
+            apiState={apiState}
+            onFinishOnboarding={() => setActiveView('openapi')}
+            onBackToSplash={() => setActiveView('splash')}
+          />
+        )}
+
+        {activeView === 'openapi' && (
+          <OpenApiStubView
+            apiState={apiState}
+            isLoadingApi={isLoadingApi}
+            onRefreshApi={loadSkeletonData}
+            onGoToSplash={() => setActiveView('splash')}
+            onGoToOnboarding={() => setActiveView('onboarding')}
+          />
+        )}
+      </main>
+
+      {/* Нижній статус-бар оболонки */}
+      <footer className="border-t border-zinc-800/80 bg-zinc-950/90">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs text-zinc-400 sm:px-6">
+          <div>{labels.footerShellNote}</div>
+          <div className="flex flex-wrap items-center gap-4">
+            <span>
+              {labels.workingHoursLabel}:{' '}
+              <strong className="text-zinc-200">{apiState.settings.workingHours}</strong>
+            </span>
+            <span>
+              {labels.freePlacesLabel}:{' '}
+              <strong className="text-emerald-400">{apiState.settings.availablePcsCount}</strong>
+            </span>
+            <a
+              href="http://localhost:5000/api/docs"
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-violet-400 hover:text-violet-300 hover:underline"
+            >
+              {labels.swaggerDocsLabel} ↗
+            </a>
+          </div>
+        </div>
+      </footer>
+    </div>
   )
 }
 
