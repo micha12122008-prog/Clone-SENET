@@ -3,7 +3,6 @@ import type {
   AuthUserDto,
   DevOtpResult,
   LoginRequestDto,
-  OtpVerificationType,
   RegisterRequestDto,
   RegisterResult,
   ResetPasswordRequestDto,
@@ -14,8 +13,8 @@ import { getAuthToken, requestOpenApi, setAuthToken } from './openapiClient'
 
 function extractOtpCode(payload: Record<string, unknown>): string {
   const candidates = [
-    payload.otpCode,
     payload.code,
+    payload.otpCode,
     payload.devOtp,
     payload.otp,
     payload.debugCode,
@@ -28,8 +27,6 @@ function extractOtpCode(payload: Record<string, unknown>): string {
       return String(val)
     }
   }
-  // Якщо підключено тиждень-1 скелет бекенду, де поле code ще не додане у тіло відповіді,
-  // повертаємо детермінований dev-код, сумісний зі схемою VerifyOtpDto (example: '482910').
   return '482910'
 }
 
@@ -55,6 +52,44 @@ export async function sendOtpCode(dto: SendOtpRequestDto): Promise<DevOtpResult>
     devOtpCode,
     message,
     expiresInSeconds,
+    rawResponse: {
+      ...response,
+      devOtpCode,
+    },
+  }
+}
+
+export async function changeOtpTarget(
+  oldTarget: string,
+  newTarget: string,
+): Promise<DevOtpResult> {
+  const cleanOld = oldTarget.trim()
+  const cleanNew = newTarget.trim()
+
+  const response = await requestOpenApi<Record<string, unknown>>('/auth/otp/change-target', {
+    method: 'POST',
+    body: JSON.stringify({
+      oldTarget: cleanOld,
+      newTarget: cleanNew,
+      type: 'REGISTRATION',
+    }),
+  })
+
+  const devOtpCode = extractOtpCode(response)
+  const resolvedTarget =
+    typeof response.target === 'string' && response.target.trim().length > 0
+      ? response.target.trim()
+      : cleanNew
+
+  return {
+    target: resolvedTarget,
+    devOtpCode,
+    message:
+      typeof response.message === 'string'
+        ? response.message
+        : `Контакт змінено на ${resolvedTarget}. Новий код надіслано.`,
+    expiresInSeconds:
+      typeof response.expiresInSeconds === 'number' ? response.expiresInSeconds : 300,
     rawResponse: {
       ...response,
       devOtpCode,
@@ -91,20 +126,27 @@ export async function registerClient(dto: RegisterRequestDto): Promise<RegisterR
   }
 
   const directCode =
-    registerRes.otpCode ?? registerRes.code ?? registerRes.devOtp ?? registerRes.otp
+    registerRes.code ?? registerRes.otpCode ?? registerRes.devOtp ?? registerRes.otp
+  const targetFromRes =
+    typeof registerRes.otpTarget === 'string'
+      ? registerRes.otpTarget
+      : dto.phone.trim() || dto.email.trim()
 
   if (typeof directCode === 'string' || typeof directCode === 'number') {
     const codeStr = String(directCode)
     return {
       user,
       otp: {
-        target: dto.phone.trim() || dto.email.trim(),
+        target: targetFromRes,
         devOtpCode: codeStr,
         message:
           typeof registerRes.message === 'string'
             ? registerRes.message
             : 'Користувача зареєстровано. Код OTP повернуто у відповіді dev API.',
-        expiresInSeconds: 300,
+        expiresInSeconds:
+          typeof registerRes.expiresInSeconds === 'number'
+            ? registerRes.expiresInSeconds
+            : 300,
         rawResponse: {
           ...registerRes,
           devOtpCode: codeStr,
@@ -114,7 +156,7 @@ export async function registerClient(dto: RegisterRequestDto): Promise<RegisterR
   }
 
   const otp = await sendOtpCode({
-    target: dto.phone.trim() || dto.email.trim(),
+    target: targetFromRes,
     type: 'REGISTRATION',
   })
 
@@ -218,6 +260,7 @@ export async function verifyOtpAndCreateSession(
     body: JSON.stringify({
       target: dto.target.trim(),
       code: dto.code.trim(),
+      type: 'REGISTRATION',
     }),
   })
 
@@ -227,7 +270,6 @@ export async function verifyOtpAndCreateSession(
     )
   }
 
-  // Якщо бекенд повернув accessToken одразу у відповіді /auth/otp/verify
   if (typeof verifyRes.accessToken === 'string') {
     const token = verifyRes.accessToken
     setAuthToken(token)
@@ -260,7 +302,6 @@ export async function verifyOtpAndCreateSession(
     }
   }
 
-  // Отримуємо JWT токен через /auth/login після успішної верифікації OTP
   return loginClient(
     {
       login: dto.target.trim(),
@@ -272,30 +313,69 @@ export async function verifyOtpAndCreateSession(
 
 export async function requestPasswordResetOtp(target: string): Promise<DevOtpResult> {
   const cleanTarget = target.trim()
-  const type: OtpVerificationType = 'PASSWORD_RESET'
-  return sendOtpCode({ target: cleanTarget, type })
+  const response = await requestOpenApi<Record<string, unknown>>(
+    '/auth/password-reset/request',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        identifier: cleanTarget,
+        target: cleanTarget,
+      }),
+    },
+  )
+
+  const devOtpCode = extractOtpCode(response)
+  const resolvedTarget =
+    typeof response.target === 'string' && response.target.trim().length > 0
+      ? response.target.trim()
+      : cleanTarget
+
+  return {
+    target: resolvedTarget,
+    devOtpCode,
+    message:
+      typeof response.message === 'string'
+        ? response.message
+        : 'Код для скидання пароля успішно згенеровано.',
+    expiresInSeconds:
+      typeof response.expiresInSeconds === 'number' ? response.expiresInSeconds : 300,
+    rawResponse: {
+      ...response,
+      devOtpCode,
+    },
+  }
 }
 
 export async function confirmPasswordReset(
   dto: ResetPasswordRequestDto,
 ): Promise<{ message: string }> {
-  // Спочатку верифікуємо OTP-код через живий API
-  const verifyRes = await requestOpenApi<Record<string, unknown>>('/auth/otp/verify', {
-    method: 'POST',
-    body: JSON.stringify({
-      target: dto.target.trim(),
-      code: dto.code.trim(),
-    }),
-  })
+  const cleanTarget = dto.target.trim()
+  const response = await requestOpenApi<Record<string, unknown>>(
+    '/auth/password-reset/confirm',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        identifier: cleanTarget,
+        target: cleanTarget,
+        code: dto.code.trim(),
+        newPassword: dto.newPassword,
+      }),
+    },
+  )
 
-  if (verifyRes.verified === false || verifyRes.success === false) {
+  if (response.success === false) {
     throw new Error(
-      typeof verifyRes.message === 'string' ? verifyRes.message : 'Невірний код підтвердження',
+      typeof response.message === 'string'
+        ? response.message
+        : 'Не вдалося змінити пароль.',
     )
   }
 
   return {
-    message: 'Пароль успішно скинуто та оновлено. Тепер ви можете увійти з новим паролем.',
+    message:
+      typeof response.message === 'string'
+        ? response.message
+        : 'Пароль успішно змінено. Тепер ви можете увійти з новим паролем.',
   }
 }
 

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { sendOtpCode, verifyOtpAndCreateSession } from '../api/authApi'
+import { changeOtpTarget, sendOtpCode, verifyOtpAndCreateSession } from '../api/authApi'
 import type { AuthSession, AuthUserDto, DevOtpResult } from '../types/auth'
 
 interface OtpScreenProps {
@@ -99,10 +99,7 @@ export function OtpScreen({
 
     setIsResending(true)
     try {
-      const refreshed = await sendOtpCode({
-        target: newTarget.trim(),
-        type: 'REGISTRATION',
-      })
+      const refreshed = await changeOtpTarget(otpState.target, newTarget.trim())
       setOtpState(refreshed)
       setCode(refreshed.devOtpCode)
       setIsChangingTarget(false)
