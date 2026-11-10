@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { logoutClient } from './api/authApi'
 import {
   OPENAPI_FALLBACK_HEALTH,
   OPENAPI_FALLBACK_SETTINGS,
@@ -6,16 +7,30 @@ import {
   OPENAPI_FALLBACK_ZONES,
   fetchOpenApiSkeleton,
 } from './api/openapiClient'
+import { ClientCabinetView } from './components/ClientCabinetView'
+import { LoginScreen } from './components/LoginScreen'
 import { OnboardingScreen } from './components/OnboardingScreen'
 import { OpenApiStubView } from './components/OpenApiStubView'
+import { OtpScreen } from './components/OtpScreen'
+import { PasswordResetScreen } from './components/PasswordResetScreen'
+import { RegisterScreen } from './components/RegisterScreen'
 import { SplashScreen } from './components/SplashScreen'
 import { SHELL_LABELS, type ShellLocale } from './i18n/shellLabels'
+import type { AuthSession, AuthUserDto, DevOtpResult } from './types/auth'
 import type { OpenApiSkeletonState } from './types/openapi'
 
-type ClientScreenView = 'splash' | 'onboarding' | 'openapi'
+type ClientScreenView =
+  | 'splash'
+  | 'onboarding'
+  | 'login'
+  | 'register'
+  | 'otp'
+  | 'password-reset'
+  | 'cabinet'
+  | 'openapi'
 
 export function App() {
-  const [activeView, setActiveView] = useState<ClientScreenView>('splash')
+  const [activeView, setActiveView] = useState<ClientScreenView>('login')
   const [shellLocale, setShellLocale] = useState<ShellLocale>('uk')
   const [isLoadingApi, setIsLoadingApi] = useState<boolean>(true)
   const [apiState, setApiState] = useState<OpenApiSkeletonState>(() => ({
@@ -27,6 +42,16 @@ export function App() {
     tariffs: OPENAPI_FALLBACK_TARIFFS,
     loadedAt: new Date().toLocaleTimeString('uk-UA'),
   }))
+
+  // Стан авторизації, OTP та скидання пароля (Тиждень 2)
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null)
+  const [pendingOtp, setPendingOtp] = useState<DevOtpResult | null>(null)
+  const [pendingRegisteredUser, setPendingRegisteredUser] = useState<AuthUserDto | undefined>(
+    undefined,
+  )
+  const [pendingPassword, setPendingPassword] = useState<string | undefined>(undefined)
+  const [loginIdentifier, setLoginIdentifier] = useState<string>('')
+  const [loginNotice, setLoginNotice] = useState<string | null>(null)
 
   const loadSkeletonData = useCallback(async () => {
     setIsLoadingApi(true)
@@ -47,6 +72,13 @@ export function App() {
       mounted = false
     }
   }, [])
+
+  const handleLogout = async () => {
+    await logoutClient()
+    setAuthSession(null)
+    setLoginNotice('Ви успішно вийшли з облікового запису.')
+    setActiveView('login')
+  }
 
   const labels = SHELL_LABELS[shellLocale]
 
@@ -73,12 +105,12 @@ export function App() {
             </div>
           </div>
 
-          {/* Навігація оболонки між Заставкою, Онбордингом і Скелетом OpenAPI */}
-          <nav aria-label="Навігація оболонки" className="flex items-center gap-1.5">
+          {/* Навігація оболонки */}
+          <nav aria-label="Навігація оболонки" className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={() => setActiveView('splash')}
-              className={`cursor-pointer rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
+              className={`cursor-pointer rounded-xl px-3 py-2 text-xs font-semibold transition ${
                 activeView === 'splash'
                   ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/30'
                   : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
@@ -90,7 +122,7 @@ export function App() {
             <button
               type="button"
               onClick={() => setActiveView('onboarding')}
-              className={`cursor-pointer rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
+              className={`cursor-pointer rounded-xl px-3 py-2 text-xs font-semibold transition ${
                 activeView === 'onboarding'
                   ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/30'
                   : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
@@ -101,8 +133,49 @@ export function App() {
 
             <button
               type="button"
+              onClick={() => {
+                setLoginNotice(null)
+                setActiveView('login')
+              }}
+              className={`cursor-pointer rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                activeView === 'login' || activeView === 'password-reset'
+                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/30'
+                  : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
+              }`}
+            >
+              {labels.navLogin}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveView('register')}
+              className={`cursor-pointer rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                activeView === 'register' || activeView === 'otp'
+                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/30'
+                  : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
+              }`}
+            >
+              {labels.navRegister}
+            </button>
+
+            {authSession && (
+              <button
+                type="button"
+                onClick={() => setActiveView('cabinet')}
+                className={`cursor-pointer rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                  activeView === 'cabinet'
+                    ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                    : 'border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
+                }`}
+              >
+                {labels.navCabinet}
+              </button>
+            )}
+
+            <button
+              type="button"
               onClick={() => setActiveView('openapi')}
-              className={`cursor-pointer rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
+              className={`cursor-pointer rounded-xl px-3 py-2 text-xs font-semibold transition ${
                 activeView === 'openapi'
                   ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/30'
                   : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
@@ -169,16 +242,81 @@ export function App() {
             apiState={apiState}
             isLoadingApi={isLoadingApi}
             onStartOnboarding={() => setActiveView('onboarding')}
-            onOpenApiContract={() => setActiveView('openapi')}
+            onOpenApiContract={() => setActiveView('login')}
           />
         )}
 
         {activeView === 'onboarding' && (
           <OnboardingScreen
             apiState={apiState}
-            onFinishOnboarding={() => setActiveView('openapi')}
+            onFinishOnboarding={() => setActiveView('register')}
             onBackToSplash={() => setActiveView('splash')}
           />
+        )}
+
+        {activeView === 'login' && (
+          <LoginScreen
+            initialIdentifier={loginIdentifier}
+            noticeMessage={loginNotice}
+            onLoggedIn={(session) => {
+              setAuthSession(session)
+              setLoginNotice(null)
+              setActiveView('cabinet')
+            }}
+            onSwitchToRegister={() => {
+              setLoginNotice(null)
+              setActiveView('register')
+            }}
+            onForgotPassword={(currentLogin) => {
+              setLoginIdentifier(currentLogin)
+              setLoginNotice(null)
+              setActiveView('password-reset')
+            }}
+          />
+        )}
+
+        {activeView === 'register' && (
+          <RegisterScreen
+            onRegistered={({ user, otp, password }) => {
+              setPendingRegisteredUser(user)
+              setPendingOtp(otp)
+              setPendingPassword(password)
+              setActiveView('otp')
+            }}
+            onSwitchToLogin={() => {
+              setLoginNotice(null)
+              setActiveView('login')
+            }}
+          />
+        )}
+
+        {activeView === 'otp' && pendingOtp && (
+          <OtpScreen
+            initialOtp={pendingOtp}
+            registeredUser={pendingRegisteredUser}
+            pendingPassword={pendingPassword}
+            onVerified={(session) => {
+              setAuthSession(session)
+              setActiveView('cabinet')
+            }}
+            onBackToRegister={() => setActiveView('register')}
+          />
+        )}
+
+        {activeView === 'password-reset' && (
+          <PasswordResetScreen
+            initialTarget={loginIdentifier}
+            onResetCompleted={(target, message) => {
+              setLoginIdentifier(target)
+              setLoginNotice(message)
+              setActiveView('login')
+            }}
+            onBackToLogin={() => setActiveView('login')}
+          />
+        )}
+
+        {activeView === 'cabinet' && authSession && (
+          <ClientCabinetView session={authSession} onLogout={handleLogout} />
         )}
 
         {activeView === 'openapi' && (
