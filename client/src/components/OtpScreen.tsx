@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { changeOtpTarget, sendOtpCode, verifyOtpAndCreateSession } from '../api/authApi'
+import { SHELL_LABELS, type ShellLocale } from '../i18n/shellLabels'
 import type { AuthSession, AuthUserDto, DevOtpResult } from '../types/auth'
 
 interface OtpScreenProps {
+  locale?: ShellLocale
   initialOtp: DevOtpResult
   registeredUser?: AuthUserDto
   pendingPassword?: string
@@ -11,12 +13,15 @@ interface OtpScreenProps {
 }
 
 export function OtpScreen({
+  locale = 'uk',
   initialOtp,
   registeredUser,
   pendingPassword,
   onVerified,
   onBackToRegister,
 }: OtpScreenProps) {
+  const t = SHELL_LABELS[locale]
+
   const [otpState, setOtpState] = useState<DevOtpResult>(initialOtp)
   const [code, setCode] = useState(initialOtp.devOtpCode)
   const [isChangingTarget, setIsChangingTarget] = useState(false)
@@ -31,8 +36,8 @@ export function OtpScreen({
     e.preventDefault()
     setErrorMessage(null)
 
-    if (!code.trim() || code.trim().length < 4) {
-      setErrorMessage('Введіть код підтвердження OTP.')
+    if (code.trim().length < 4) {
+      setErrorMessage(t.errOtpCode)
       return
     }
 
@@ -60,9 +65,7 @@ export function OtpScreen({
 
       onVerified(session)
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : 'Не вдалося підтвердити код OTP через API.',
-      )
+      setErrorMessage(err instanceof Error ? err.message : t.errOtpCode)
     } finally {
       setIsVerifying(false)
     }
@@ -78,11 +81,9 @@ export function OtpScreen({
       })
       setOtpState(refreshed)
       setCode(refreshed.devOtpCode)
-      setStatusMessage(`Новий код згенеровано у відповіді dev API для ${refreshed.target}.`)
+      setStatusMessage(t.otpResentStatus(refreshed.target))
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : 'Помилка повторного надсилання коду OTP.',
-      )
+      setErrorMessage(err instanceof Error ? err.message : t.errOtpCode)
     } finally {
       setIsResending(false)
     }
@@ -92,8 +93,8 @@ export function OtpScreen({
     e.preventDefault()
     setErrorMessage(null)
 
-    if (!newTarget.trim() || newTarget.trim().length < 5) {
-      setErrorMessage('Вкажіть коректний номер телефону або email.')
+    if (newTarget.trim().length < 5) {
+      setErrorMessage(t.errOtpNewTarget)
       return
     }
 
@@ -103,11 +104,9 @@ export function OtpScreen({
       setOtpState(refreshed)
       setCode(refreshed.devOtpCode)
       setIsChangingTarget(false)
-      setStatusMessage(`Ідентифікатор змінено на ${refreshed.target}. Надіслано новий код OTP.`)
+      setStatusMessage(t.otpChangedTargetStatus(refreshed.target))
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : 'Не вдалося змінити номер або email.',
-      )
+      setErrorMessage(err instanceof Error ? err.message : t.errOtpNewTarget)
     } finally {
       setIsResending(false)
     }
@@ -115,40 +114,34 @@ export function OtpScreen({
 
   return (
     <section
-      aria-label="Підтвердження коду OTP"
+      aria-label={t.otpAria}
       className="mx-auto flex w-full max-w-xl flex-col py-4 sm:py-8"
     >
       <div className="rounded-3xl border border-zinc-800 bg-zinc-900/90 p-6 shadow-2xl sm:p-8">
         <div className="border-b border-zinc-800 pb-5">
           <span className="inline-block rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">
-            Окремий екран OTP • Верифікація
+            {t.otpBadge}
           </span>
-          <h2 className="mt-3 text-2xl font-bold text-white sm:text-3xl">
-            Підтвердження облікового запису
-          </h2>
+          <h2 className="mt-3 text-2xl font-bold text-white sm:text-3xl">{t.otpTitle}</h2>
           <p className="mt-1.5 text-sm text-zinc-400">
-            Код підтвердження прив’язано до ідентифікатора:{' '}
-            <strong className="text-white">{otpState.target}</strong>
+            {t.otpSubtitlePrefix} <strong className="text-white">{otpState.target}</strong>
           </p>
         </div>
 
-        {/* Блок відповіді dev API з кодом OTP (без SMS і пошти згідно з ТЗ) */}
         <div className="mt-5 rounded-2xl border border-violet-500/40 bg-violet-500/10 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="text-xs font-semibold tracking-wider text-violet-300 uppercase">
-                Відповідь dev API (POST /api/auth/otp/send)
+                {t.otpDevApiHeader}
               </div>
-              <div className="mt-1 text-xs text-zinc-300">
-                Провайдера SMS чи пошти немає — код повертається безпосередньо у відповіді API:
-              </div>
+              <div className="mt-1 text-xs text-zinc-300">{t.otpDevApiDesc}</div>
             </div>
             <button
               type="button"
               onClick={() => setCode(otpState.devOtpCode)}
               className="cursor-pointer rounded-lg border border-violet-400/40 bg-violet-600/30 px-3 py-1.5 font-mono text-sm font-bold text-white transition hover:bg-violet-600/50"
             >
-              Код: {otpState.devOtpCode}
+              {t.otpCodeChipPrefix} {otpState.devOtpCode}
             </button>
           </div>
           {statusMessage && (
@@ -167,11 +160,10 @@ export function OtpScreen({
           </div>
         )}
 
-        {/* Форма введення та підтвердження коду OTP */}
         <form onSubmit={handleVerify} className="mt-6 space-y-4">
           <div>
             <label htmlFor="otp-code-input" className="block text-xs font-medium text-zinc-300">
-              Цифровий код підтвердження (OTP) *
+              {t.otpInputLabel}
             </label>
             <input
               id="otp-code-input"
@@ -191,13 +183,10 @@ export function OtpScreen({
             disabled={isVerifying}
             className="w-full cursor-pointer rounded-xl bg-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-600/25 transition hover:bg-violet-500 disabled:opacity-50"
           >
-            {isVerifying
-              ? 'Перевірка коду та отримання токена...'
-              : 'Підтвердити код і продовжити з токеном →'}
+            {isVerifying ? t.otpVerifyingBtn : t.otpVerifyBtn}
           </button>
         </form>
 
-        {/* Дії: Надіслати код знову / Змінити номер або email */}
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 pt-5 text-xs">
           <button
             type="button"
@@ -205,7 +194,7 @@ export function OtpScreen({
             disabled={isResending}
             className="cursor-pointer font-semibold text-violet-400 transition hover:text-violet-300 hover:underline disabled:opacity-50"
           >
-            {isResending ? 'Надсилання...' : 'Надіслати код знову'}
+            {isResending ? t.otpResendingBtn : t.otpResendBtn}
           </button>
 
           <button
@@ -213,7 +202,7 @@ export function OtpScreen({
             onClick={() => setIsChangingTarget((prev) => !prev)}
             className="cursor-pointer font-semibold text-zinc-300 transition hover:text-white hover:underline"
           >
-            {isChangingTarget ? 'Скасувати зміну' : 'Змінити номер або email'}
+            {isChangingTarget ? t.otpCancelChangeBtn : t.otpChangeTargetBtn}
           </button>
         </div>
 
@@ -223,7 +212,7 @@ export function OtpScreen({
             className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-950 p-4"
           >
             <label htmlFor="otp-new-target" className="block text-xs font-medium text-zinc-300">
-              Новий номер телефону або email
+              {t.otpNewTargetLabel}
             </label>
             <div className="mt-2 flex flex-col gap-2 sm:flex-row">
               <input
@@ -232,7 +221,7 @@ export function OtpScreen({
                 required
                 value={newTarget}
                 onChange={(e) => setNewTarget(e.target.value)}
-                placeholder="+380991112233 або email@domain.com"
+                placeholder={t.otpNewTargetPlaceholder}
                 className="flex-1 rounded-xl border border-zinc-700 bg-zinc-900 px-3.5 py-2 text-sm text-white focus:border-violet-500 focus:outline-none"
               />
               <button
@@ -240,7 +229,7 @@ export function OtpScreen({
                 disabled={isResending}
                 className="cursor-pointer rounded-xl bg-zinc-800 px-4 py-2 text-xs font-semibold text-white transition hover:bg-zinc-700 disabled:opacity-50"
               >
-                Оновити і надіслати код
+                {t.otpApplyTargetBtn}
               </button>
             </div>
           </form>
@@ -252,7 +241,7 @@ export function OtpScreen({
             onClick={onBackToRegister}
             className="cursor-pointer text-xs text-zinc-400 hover:text-zinc-200 hover:underline"
           >
-            ← Повернутися до форми реєстрації
+            {t.otpBackToRegisterBtn}
           </button>
         </div>
       </div>

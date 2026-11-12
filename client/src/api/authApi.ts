@@ -11,6 +11,8 @@ import type {
 } from '../types/auth'
 import { getAuthToken, requestOpenApi, setAuthToken } from './openapiClient'
 
+const FALLBACK_DEV_OTP_CODE = '000000'
+
 function extractOtpCode(payload: Record<string, unknown>): string {
   const candidates = [
     payload.code,
@@ -19,15 +21,16 @@ function extractOtpCode(payload: Record<string, unknown>): string {
     payload.otp,
     payload.debugCode,
   ]
-  for (const val of candidates) {
-    if (typeof val === 'string' && val.trim().length > 0) {
-      return val.trim()
-    }
-    if (typeof val === 'number') {
-      return String(val)
-    }
-  }
-  return '482910'
+
+  const matchedCode = candidates.find(
+    (value): value is string | number =>
+      (typeof value === 'string' && value.trim().length > 0) ||
+      typeof value === 'number',
+  )
+
+  return matchedCode !== undefined
+    ? String(matchedCode).trim()
+    : FALLBACK_DEV_OTP_CODE
 }
 
 export async function sendOtpCode(dto: SendOtpRequestDto): Promise<DevOtpResult> {

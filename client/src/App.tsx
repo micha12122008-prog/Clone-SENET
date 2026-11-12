@@ -43,7 +43,6 @@ export function App() {
     loadedAt: new Date().toLocaleTimeString('uk-UA'),
   }))
 
-  // Стан авторизації, OTP та скидання пароля (Тиждень 2)
   const [authSession, setAuthSession] = useState<AuthSession | null>(null)
   const [pendingOtp, setPendingOtp] = useState<DevOtpResult | null>(null)
   const [pendingRegisteredUser, setPendingRegisteredUser] = useState<AuthUserDto | undefined>(
@@ -73,21 +72,19 @@ export function App() {
     }
   }, [])
 
+  const labels = SHELL_LABELS[shellLocale]
+
   const handleLogout = async () => {
     await logoutClient()
     setAuthSession(null)
-    setLoginNotice('Ви успішно вийшли з облікового запису.')
+    setLoginNotice(labels.logoutNotice)
     setActiveView('login')
   }
 
-  const labels = SHELL_LABELS[shellLocale]
-
   return (
     <div className="flex min-h-svh flex-col bg-zinc-950 text-zinc-100">
-      {/* Верхня оболонка клієнта (підписи оболонки перекладаються перемикачем UA/EN) */}
       <header className="sticky top-0 z-30 border-b border-zinc-800/90 bg-zinc-950/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          {/* Брендинг оболонки */}
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-violet-500/40 bg-violet-500/15 font-mono text-sm font-extrabold text-violet-300">
               OB
@@ -105,8 +102,7 @@ export function App() {
             </div>
           </div>
 
-          {/* Навігація оболонки */}
-          <nav aria-label="Навігація оболонки" className="flex flex-wrap items-center gap-1.5">
+          <nav aria-label="Navigation" className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={() => setActiveView('splash')}
@@ -185,7 +181,6 @@ export function App() {
             </button>
           </nav>
 
-          {/* Статус API та перемикач мови виключно для підписів оболонки */}
           <div className="flex items-center gap-3">
             <div className="hidden items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/90 px-3 py-1.5 text-xs md:flex">
               <span
@@ -235,10 +230,10 @@ export function App() {
         </div>
       </header>
 
-      {/* Основна область контенту (тексти інтерфейсу українською) */}
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-4 py-4 sm:px-6">
         {activeView === 'splash' && (
           <SplashScreen
+            locale={shellLocale}
             apiState={apiState}
             isLoadingApi={isLoadingApi}
             onStartOnboarding={() => setActiveView('onboarding')}
@@ -248,6 +243,7 @@ export function App() {
 
         {activeView === 'onboarding' && (
           <OnboardingScreen
+            locale={shellLocale}
             apiState={apiState}
             onFinishOnboarding={() => setActiveView('register')}
             onBackToSplash={() => setActiveView('splash')}
@@ -256,6 +252,7 @@ export function App() {
 
         {activeView === 'login' && (
           <LoginScreen
+            locale={shellLocale}
             initialIdentifier={loginIdentifier}
             noticeMessage={loginNotice}
             onLoggedIn={(session) => {
@@ -277,6 +274,7 @@ export function App() {
 
         {activeView === 'register' && (
           <RegisterScreen
+            locale={shellLocale}
             onRegistered={({ user, otp, password }) => {
               setPendingRegisteredUser(user)
               setPendingOtp(otp)
@@ -292,6 +290,7 @@ export function App() {
 
         {activeView === 'otp' && pendingOtp && (
           <OtpScreen
+            locale={shellLocale}
             initialOtp={pendingOtp}
             registeredUser={pendingRegisteredUser}
             pendingPassword={pendingPassword}
@@ -305,6 +304,7 @@ export function App() {
 
         {activeView === 'password-reset' && (
           <PasswordResetScreen
+            locale={shellLocale}
             initialTarget={loginIdentifier}
             onResetCompleted={(target, message) => {
               setLoginIdentifier(target)
@@ -316,11 +316,16 @@ export function App() {
         )}
 
         {activeView === 'cabinet' && authSession && (
-          <ClientCabinetView session={authSession} onLogout={handleLogout} />
+          <ClientCabinetView
+            locale={shellLocale}
+            session={authSession}
+            onLogout={handleLogout}
+          />
         )}
 
         {activeView === 'openapi' && (
           <OpenApiStubView
+            locale={shellLocale}
             apiState={apiState}
             isLoadingApi={isLoadingApi}
             onRefreshApi={loadSkeletonData}
@@ -330,7 +335,6 @@ export function App() {
         )}
       </main>
 
-      {/* Нижній статус-бар оболонки */}
       <footer className="border-t border-zinc-800/80 bg-zinc-950/90">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs text-zinc-400 sm:px-6">
           <div>{labels.footerShellNote}</div>

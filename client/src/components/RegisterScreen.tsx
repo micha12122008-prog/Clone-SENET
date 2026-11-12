@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { registerClient } from '../api/authApi'
+import { SHELL_LABELS, type ClientTranslations, type ShellLocale } from '../i18n/shellLabels'
 import type { AuthUserDto, DevOtpResult } from '../types/auth'
 import { SocialAuthButtons } from './SocialAuthButtons'
 
 interface RegisterScreenProps {
+  locale?: ShellLocale
   onRegistered: (payload: {
     user: AuthUserDto
     otp: DevOtpResult
@@ -12,7 +14,45 @@ interface RegisterScreenProps {
   onSwitchToLogin: () => void
 }
 
-export function RegisterScreen({ onRegistered, onSwitchToLogin }: RegisterScreenProps) {
+interface RegisterFormValues {
+  firstName: string
+  username: string
+  phone: string
+  email: string
+  password: string
+  confirmPassword: string
+  birthDate: string
+  agreeToRules: boolean
+}
+
+function validateRegisterForm(
+  values: RegisterFormValues,
+  t: ClientTranslations,
+): string | null {
+  const rules: Array<{ isInvalid: boolean; message: string }> = [
+    { isInvalid: !values.firstName.trim(), message: t.errFirstName },
+    { isInvalid: !values.username.trim(), message: t.errUsername },
+    { isInvalid: values.phone.trim().length < 10, message: t.errPhone },
+    {
+      isInvalid: !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim()),
+      message: t.errEmail,
+    },
+    { isInvalid: values.password.length < 6, message: t.errPasswordLength },
+    { isInvalid: values.password !== values.confirmPassword, message: t.errPasswordMismatch },
+    { isInvalid: !values.birthDate, message: t.errBirthDate },
+    { isInvalid: !values.agreeToRules, message: t.errAgreeRules },
+  ]
+
+  return rules.find((rule) => rule.isInvalid)?.message ?? null
+}
+
+export function RegisterScreen({
+  locale = 'uk',
+  onRegistered,
+  onSwitchToLogin,
+}: RegisterScreenProps) {
+  const t = SHELL_LABELS[locale]
+
   const [firstName, setFirstName] = useState('')
   const [username, setUsername] = useState('')
   const [phone, setPhone] = useState('+380')
@@ -30,36 +70,22 @@ export function RegisterScreen({ onRegistered, onSwitchToLogin }: RegisterScreen
     e.preventDefault()
     setErrorMessage(null)
 
-    if (!firstName.trim()) {
-      setErrorMessage('Введіть ваше ім’я.')
-      return
-    }
-    if (!username.trim()) {
-      setErrorMessage('Введіть нікнейм гравця.')
-      return
-    }
-    if (!phone.trim() || phone.trim().length < 10) {
-      setErrorMessage('Введіть коректний номер телефону (наприклад, +380991112233).')
-      return
-    }
-    if (!email.trim() || !email.includes('@')) {
-      setErrorMessage('Введіть коректну адресу електронної пошти.')
-      return
-    }
-    if (password.length < 6) {
-      setErrorMessage('Пароль має містити щонайменше 6 символів.')
-      return
-    }
-    if (password !== confirmPassword) {
-      setErrorMessage('Пароль і підтвердження пароля не збігаються.')
-      return
-    }
-    if (!birthDate) {
-      setErrorMessage('Вкажіть дату народження.')
-      return
-    }
-    if (!agreeToRules) {
-      setErrorMessage('Необхідно погодитися з правилами клубу.')
+    const validationError = validateRegisterForm(
+      {
+        firstName,
+        username,
+        phone,
+        email,
+        password,
+        confirmPassword,
+        birthDate,
+        agreeToRules,
+      },
+      t,
+    )
+
+    if (validationError) {
+      setErrorMessage(validationError)
       return
     }
 
@@ -81,7 +107,7 @@ export function RegisterScreen({ onRegistered, onSwitchToLogin }: RegisterScreen
       })
     } catch (err) {
       setErrorMessage(
-        err instanceof Error ? err.message : 'Не вдалося виконати реєстрацію через API.',
+        err instanceof Error ? err.message : 'Registration error.',
       )
     } finally {
       setIsSubmitting(false)
@@ -90,20 +116,16 @@ export function RegisterScreen({ onRegistered, onSwitchToLogin }: RegisterScreen
 
   return (
     <section
-      aria-label="Реєстрація клієнта"
+      aria-label={t.registerAria}
       className="mx-auto flex w-full max-w-2xl flex-col py-4 sm:py-8"
     >
       <div className="rounded-3xl border border-zinc-800 bg-zinc-900/90 p-6 shadow-2xl sm:p-8">
         <div className="border-b border-zinc-800 pb-5">
           <span className="inline-block rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-300">
-            Тиждень 2 • Реєстрація клієнта
+            {t.registerBadge}
           </span>
-          <h2 className="mt-3 text-2xl font-bold text-white sm:text-3xl">
-            Створення облікового запису OBSIDIAN PC CLUB
-          </h2>
-          <p className="mt-1.5 text-sm text-zinc-400">
-            Заповніть анкету гравця. Після відправки форми відкриється екран підтвердження коду OTP.
-          </p>
+          <h2 className="mt-3 text-2xl font-bold text-white sm:text-3xl">{t.registerTitle}</h2>
+          <p className="mt-1.5 text-sm text-zinc-400">{t.registerSubtitle}</p>
         </div>
 
         {errorMessage && (
@@ -119,7 +141,7 @@ export function RegisterScreen({ onRegistered, onSwitchToLogin }: RegisterScreen
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="reg-firstName" className="block text-xs font-medium text-zinc-300">
-                Ім’я *
+                {t.registerFirstNameLabel}
               </label>
               <input
                 id="reg-firstName"
@@ -127,14 +149,14 @@ export function RegisterScreen({ onRegistered, onSwitchToLogin }: RegisterScreen
                 required
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                placeholder="Олександр"
+                placeholder={t.registerFirstNamePlaceholder}
                 className="mt-1.5 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none"
               />
             </div>
 
             <div>
               <label htmlFor="reg-username" className="block text-xs font-medium text-zinc-300">
-                Нік (нікнейм) *
+                {t.registerUsernameLabel}
               </label>
               <input
                 id="reg-username"
@@ -142,14 +164,14 @@ export function RegisterScreen({ onRegistered, onSwitchToLogin }: RegisterScreen
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="s1mple_pro"
+                placeholder={t.registerUsernamePlaceholder}
                 className="mt-1.5 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none"
               />
             </div>
 
             <div>
               <label htmlFor="reg-phone" className="block text-xs font-medium text-zinc-300">
-                Телефон *
+                {t.registerPhoneLabel}
               </label>
               <input
                 id="reg-phone"
@@ -164,7 +186,7 @@ export function RegisterScreen({ onRegistered, onSwitchToLogin }: RegisterScreen
 
             <div>
               <label htmlFor="reg-email" className="block text-xs font-medium text-zinc-300">
-                Email *
+                {t.registerEmailLabel}
               </label>
               <input
                 id="reg-email"
@@ -180,14 +202,14 @@ export function RegisterScreen({ onRegistered, onSwitchToLogin }: RegisterScreen
             <div>
               <div className="flex items-center justify-between">
                 <label htmlFor="reg-password" className="block text-xs font-medium text-zinc-300">
-                  Пароль (мін. 6 символів) *
+                  {t.registerPasswordLabel}
                 </label>
                 <button
                   type="button"
                   onClick={() => setShowPasswords((prev) => !prev)}
                   className="cursor-pointer text-[11px] font-medium text-violet-400 hover:text-violet-300"
                 >
-                  {showPasswords ? 'Сховати' : 'Показати'}
+                  {showPasswords ? t.registerHidePassword : t.registerShowPassword}
                 </button>
               </div>
               <input
@@ -208,7 +230,7 @@ export function RegisterScreen({ onRegistered, onSwitchToLogin }: RegisterScreen
                   htmlFor="reg-confirmPassword"
                   className="block text-xs font-medium text-zinc-300"
                 >
-                  Підтвердження пароля *
+                  {t.registerConfirmPasswordLabel}
                 </label>
                 {confirmPassword.length > 0 && (
                   <span
@@ -216,7 +238,9 @@ export function RegisterScreen({ onRegistered, onSwitchToLogin }: RegisterScreen
                       password === confirmPassword ? 'text-emerald-400' : 'text-rose-400'
                     }`}
                   >
-                    {password === confirmPassword ? 'Збігається ✓' : 'Не збігається'}
+                    {password === confirmPassword
+                      ? t.registerPasswordMatch
+                      : t.registerPasswordMismatch}
                   </span>
                 )}
               </div>
@@ -234,7 +258,7 @@ export function RegisterScreen({ onRegistered, onSwitchToLogin }: RegisterScreen
 
             <div className="sm:col-span-2">
               <label htmlFor="reg-birthDate" className="block text-xs font-medium text-zinc-300">
-                Дата народження *
+                {t.registerBirthDateLabel}
               </label>
               <input
                 id="reg-birthDate"
@@ -255,8 +279,7 @@ export function RegisterScreen({ onRegistered, onSwitchToLogin }: RegisterScreen
               className="mt-0.5 h-4 w-4 rounded border-zinc-700 accent-violet-600"
             />
             <span>
-              Я погоджуюся з правилами комп’ютерного клубу <strong>OBSIDIAN PC CLUB</strong> та
-              умовами користування обліковим записом *
+              {t.registerAgreePrefix} <strong>OBSIDIAN PC CLUB</strong> {t.registerAgreeSuffix}
             </span>
           </label>
 
@@ -265,20 +288,20 @@ export function RegisterScreen({ onRegistered, onSwitchToLogin }: RegisterScreen
             disabled={isSubmitting}
             className="w-full cursor-pointer rounded-xl bg-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-600/25 transition hover:bg-violet-500 disabled:opacity-50"
           >
-            {isSubmitting ? 'Реєстрація та отримання OTP...' : 'Зареєструватися і отримати код OTP →'}
+            {isSubmitting ? t.registerSubmittingBtn : t.registerSubmitBtn}
           </button>
         </form>
 
-        <SocialAuthButtons />
+        <SocialAuthButtons locale={locale} />
 
         <div className="mt-5 flex items-center justify-center gap-2 border-t border-zinc-800 pt-5 text-xs text-zinc-400">
-          <span>Вже маєте обліковий запис?</span>
+          <span>{t.registerHasAccountPrompt}</span>
           <button
             type="button"
             onClick={onSwitchToLogin}
             className="cursor-pointer font-semibold text-violet-400 hover:text-violet-300 hover:underline"
           >
-            Увійти в акаунт
+            {t.registerSwitchToLoginBtn}
           </button>
         </div>
       </div>

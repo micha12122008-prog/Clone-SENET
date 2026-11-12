@@ -1,18 +1,37 @@
 import { useState, type FormEvent } from 'react'
 import { confirmPasswordReset, requestPasswordResetOtp } from '../api/authApi'
+import { SHELL_LABELS, type ClientTranslations, type ShellLocale } from '../i18n/shellLabels'
 import type { DevOtpResult } from '../types/auth'
 
 interface PasswordResetScreenProps {
+  locale?: ShellLocale
   initialTarget?: string
   onResetCompleted: (target: string, message: string) => void
   onBackToLogin: () => void
 }
 
+function validatePasswordResetConfirm(
+  code: string,
+  newPassword: string,
+  confirmNewPassword: string,
+  t: ClientTranslations,
+): string | null {
+  const rules: Array<{ isInvalid: boolean; message: string }> = [
+    { isInvalid: code.trim().length < 4, message: t.errResetCode },
+    { isInvalid: newPassword.length < 6, message: t.errPasswordLength },
+    { isInvalid: newPassword !== confirmNewPassword, message: t.errPasswordMismatch },
+  ]
+  return rules.find((rule) => rule.isInvalid)?.message ?? null
+}
+
 export function PasswordResetScreen({
+  locale = 'uk',
   initialTarget = '',
   onResetCompleted,
   onBackToLogin,
 }: PasswordResetScreenProps) {
+  const t = SHELL_LABELS[locale]
+
   const [target, setTarget] = useState(initialTarget)
   const [otpResult, setOtpResult] = useState<DevOtpResult | null>(null)
   const [code, setCode] = useState('')
@@ -26,8 +45,8 @@ export function PasswordResetScreen({
     e.preventDefault()
     setErrorMessage(null)
 
-    if (!target.trim() || target.trim().length < 5) {
-      setErrorMessage('Введіть email або номер телефону облікового запису.')
+    if (target.trim().length < 5) {
+      setErrorMessage(t.errResetTarget)
       return
     }
 
@@ -37,9 +56,7 @@ export function PasswordResetScreen({
       setOtpResult(otp)
       setCode(otp.devOtpCode)
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : 'Не вдалося отримати код скидання з API.',
-      )
+      setErrorMessage(err instanceof Error ? err.message : t.errResetTarget)
     } finally {
       setIsLoading(false)
     }
@@ -49,16 +66,14 @@ export function PasswordResetScreen({
     e.preventDefault()
     setErrorMessage(null)
 
-    if (!code.trim() || code.trim().length < 4) {
-      setErrorMessage('Введіть код скидання пароля з відповіді API.')
-      return
-    }
-    if (newPassword.length < 6) {
-      setErrorMessage('Новий пароль має містити щонайменше 6 символів.')
-      return
-    }
-    if (newPassword !== confirmNewPassword) {
-      setErrorMessage('Новий пароль і підтвердження не збігаються.')
+    const validationError = validatePasswordResetConfirm(
+      code,
+      newPassword,
+      confirmNewPassword,
+      t,
+    )
+    if (validationError) {
+      setErrorMessage(validationError)
       return
     }
 
@@ -71,9 +86,7 @@ export function PasswordResetScreen({
       })
       onResetCompleted(target.trim(), result.message)
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : 'Помилка підтвердження скидання пароля.',
-      )
+      setErrorMessage(err instanceof Error ? err.message : t.errResetCode)
     } finally {
       setIsLoading(false)
     }
@@ -81,20 +94,16 @@ export function PasswordResetScreen({
 
   return (
     <section
-      aria-label="Скидання пароля"
+      aria-label={t.resetAria}
       className="mx-auto flex w-full max-w-xl flex-col py-4 sm:py-8"
     >
       <div className="rounded-3xl border border-zinc-800 bg-zinc-900/90 p-6 shadow-2xl sm:p-8">
         <div className="border-b border-zinc-800 pb-5">
           <span className="inline-block rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300">
-            Відновлення доступу • Без листа і SMS
+            {t.resetBadge}
           </span>
-          <h2 className="mt-3 text-2xl font-bold text-white sm:text-3xl">
-            Скидання пароля клієнта
-          </h2>
-          <p className="mt-1.5 text-sm text-zinc-400">
-            Введіть email або телефон → отримайте код у відповіді dev API → встановіть новий пароль.
-          </p>
+          <h2 className="mt-3 text-2xl font-bold text-white sm:text-3xl">{t.resetTitle}</h2>
+          <p className="mt-1.5 text-sm text-zinc-400">{t.resetSubtitle}</p>
         </div>
 
         {errorMessage && (
@@ -106,11 +115,10 @@ export function PasswordResetScreen({
           </div>
         )}
 
-        {/* Крок 1: Запит коду скидання за email або телефоном */}
         <form onSubmit={handleRequestCode} className="mt-6 space-y-4" noValidate>
           <div>
             <label htmlFor="reset-target" className="block text-xs font-medium text-zinc-300">
-              Ідентифікатор (email або телефон) *
+              {t.resetTargetLabel}
             </label>
             <div className="mt-1.5 flex flex-col gap-2 sm:flex-row">
               <input
@@ -119,7 +127,7 @@ export function PasswordResetScreen({
                 required
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
-                placeholder="player1@gmail.com або +380993334455"
+                placeholder={t.resetTargetPlaceholder}
                 className="flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none"
               />
               <button
@@ -127,13 +135,12 @@ export function PasswordResetScreen({
                 disabled={isLoading}
                 className="cursor-pointer rounded-xl bg-zinc-800 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-zinc-700 disabled:opacity-50"
               >
-                {otpResult ? 'Надіслати код знову' : 'Отримати код у dev API'}
+                {otpResult ? t.resetResendCodeBtn : t.resetGetCodeBtn}
               </button>
             </div>
           </div>
         </form>
 
-        {/* Крок 2: Код із відповіді dev API та встановлення нового пароля */}
         {otpResult && (
           <form
             onSubmit={handleConfirmReset}
@@ -144,7 +151,7 @@ export function PasswordResetScreen({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <div className="text-xs font-semibold tracking-wider text-violet-300 uppercase">
-                    Код скидання з тіла відповіді dev API
+                    {t.resetDevApiHeader}
                   </div>
                   <div className="mt-1 text-xs text-zinc-300">{otpResult.message}</div>
                 </div>
@@ -153,14 +160,14 @@ export function PasswordResetScreen({
                   onClick={() => setCode(otpResult.devOtpCode)}
                   className="cursor-pointer rounded-lg border border-violet-400/40 bg-violet-600/30 px-3 py-1.5 font-mono text-sm font-bold text-white transition hover:bg-violet-600/50"
                 >
-                  Код: {otpResult.devOtpCode}
+                  {t.otpCodeChipPrefix} {otpResult.devOtpCode}
                 </button>
               </div>
             </div>
 
             <div>
               <label htmlFor="reset-otp-code" className="block text-xs font-medium text-zinc-300">
-                Код підтвердження з відповіді API *
+                {t.resetCodeLabel}
               </label>
               <input
                 id="reset-otp-code"
@@ -180,7 +187,7 @@ export function PasswordResetScreen({
                   htmlFor="reset-new-password"
                   className="block text-xs font-medium text-zinc-300"
                 >
-                  Новий пароль (мін. 6 символів) *
+                  {t.resetNewPasswordLabel}
                 </label>
                 <input
                   id="reset-new-password"
@@ -199,7 +206,7 @@ export function PasswordResetScreen({
                   htmlFor="reset-confirm-password"
                   className="block text-xs font-medium text-zinc-300"
                 >
-                  Підтвердження нового пароля *
+                  {t.resetConfirmPasswordLabel}
                 </label>
                 <input
                   id="reset-confirm-password"
@@ -219,7 +226,7 @@ export function PasswordResetScreen({
               disabled={isLoading}
               className="w-full cursor-pointer rounded-xl bg-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-600/25 transition hover:bg-violet-500 disabled:opacity-50"
             >
-              {isLoading ? 'Збереження нового пароля...' : 'Підтвердити код і оновити пароль ✓'}
+              {isLoading ? t.resetSavingBtn : t.resetSubmitBtn}
             </button>
           </form>
         )}
@@ -230,7 +237,7 @@ export function PasswordResetScreen({
             onClick={onBackToLogin}
             className="cursor-pointer text-xs text-zinc-400 hover:text-zinc-200 hover:underline"
           >
-            ← Повернутися на екран входу
+            {t.resetBackToLoginBtn}
           </button>
         </div>
       </div>
