@@ -144,7 +144,7 @@ export async function requestOpenApi<T>(path: string, init?: RequestInit): Promi
   }
 
   const controller = new AbortController()
-  const timeoutId = window.setTimeout(() => controller.abort(), 3500)
+  const timeoutId = window.setTimeout(() => controller.abort(), 5000)
 
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -154,7 +154,18 @@ export async function requestOpenApi<T>(path: string, init?: RequestInit): Promi
     })
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
+      let errorDetail = `Помилка HTTP ${response.status}`
+      try {
+        const errJson = (await response.json()) as Record<string, unknown>
+        if (Array.isArray(errJson.messages) && errJson.messages.length > 0) {
+          errorDetail = errJson.messages.map(String).join('; ')
+        } else if (typeof errJson.message === 'string') {
+          errorDetail = errJson.message
+        }
+      } catch {
+        // Залишаємо код помилки HTTP
+      }
+      throw new Error(errorDetail)
     }
 
     const json: unknown = await response.json()
@@ -200,4 +211,3 @@ export async function fetchOpenApiSkeleton(): Promise<OpenApiSkeletonState> {
     }
   }
 }
-
