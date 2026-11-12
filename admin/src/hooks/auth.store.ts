@@ -6,7 +6,6 @@ import { tokenStorage, type UserRole } from "../services/auth/token-storage";
 interface AuthState {
     token: string | null;
     role: UserRole | null;
-    /** Вхід в адмінку. Токен зберігається лише для ролі admin. */
     signIn: (login: string, password: string) => Promise<void>;
     logout: () => void;
 }

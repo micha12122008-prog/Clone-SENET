@@ -12,7 +12,6 @@ export interface ActiveSessionsValue {
 }
 
 export interface ShiftRevenueValue {
-    /** Сума в гривнях за поточну календарну добу. */
     amount: number;
 }
 
@@ -27,7 +26,6 @@ export interface NotificationsValue {
 }
 
 export interface DashboardSnapshot {
-    /** Поточна календарна доба, наприклад «08.11.2026». «Зміна» в адмінці означає саме її. */
     dayLabel: string;
     occupancy: WidgetData<OccupancyValue>;
     activeSessions: WidgetData<ActiveSessionsValue>;

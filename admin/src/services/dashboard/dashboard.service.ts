@@ -9,14 +9,6 @@ const dayFormatter = new Intl.DateTimeFormat("uk-UA", {
 });
 
 export const DashboardService = {
-    /**
-     * Тиждень 2: живих цифр немає, тому мережевих запитів немає і вигаданих чисел теж.
-     * Не підключати GET /analytics/dashboard-summary: зараз він віддає статичні тестові дані.
-     *
-     * Тиждень 8: замінити тіло на запит через `http` + getDashboardSummaryUrl()
-     * і зібрати з відповіді { status: "ready", value } для кожного віджета.
-     * Типи у dashboard.types.ts і самі віджети змінювати не потрібно.
-     */
     async getSnapshot(): Promise<DashboardSnapshot> {
         return {
             dayLabel: dayFormatter.format(new Date()),
