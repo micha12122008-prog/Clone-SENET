@@ -78,3 +78,13 @@
         padding-bottom: 1rem;
     }
 }
+
+.admin-sidebar-footer {
+    padding: 0 0.5rem 0.75rem;
+}
+
+@media (min-width: 768px) {
+    .admin-sidebar-footer {
+        padding: 0.5rem 0.5rem 1rem;
+    }
+}
