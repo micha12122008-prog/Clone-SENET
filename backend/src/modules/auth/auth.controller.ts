@@ -1,112 +1,199 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { LoginDto, RefreshTokenDto, RegisterDto, SendOtpDto, VerifyOtpDto } from './dto/auth.dto';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { AuthService } from './auth.service';
+import {
+  ChangeOtpTargetDto,
+  ForgotPasswordDto,
+  LoginDto,
+  RefreshTokenDto,
+  RegisterDto,
+  ResetPasswordDto,
+  SendOtpDto,
+  VerifyOtpDto,
+} from './dto/auth.dto';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { UserRole } from '@prisma/client';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
+  constructor(private readonly authService: AuthService) {}
+
   @Post('register')
-  @ApiOperation({ summary: 'Реєстрація нового клієнта (гравця) з базовими даними' })
+  @ApiOperation({
+    summary: 'Реєстрація нового користувача (клієнта або адміністратора) та генерація OTP',
+  })
   @ApiResponse({ status: 201, description: 'Користувача успішно зареєстровано' })
-  register(@Body() dto: RegisterDto) {
-    return {
-      message: 'Користувача успішно зареєстровано. Надіслано код підтвердження.',
-      user: {
-        id: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
-        email: dto.email,
-        phone: dto.phone,
-        username: dto.username,
-        role: 'CLIENT',
-        level: 1,
-        balance: 0.0,
-      },
-    };
-  }
-
-  @Post('otp/send')
-  @ApiOperation({ summary: 'Генерація та відправка одноразового цифрового коду (OTP)' })
-  @ApiResponse({ status: 200, description: 'Код надіслано на вказаний телефон/email' })
-  sendOtp(@Body() dto: SendOtpDto) {
-    return {
-      success: true,
-      target: dto.target,
-      message: 'Код підтвердження успішно відправлено. Термін дії: 5 хвилин.',
-      expiresInSeconds: 300,
-    };
-  }
-
-  @Post('otp/verify')
-  @ApiOperation({ summary: 'Перевірка та підтвердження OTP-коду' })
-  @ApiResponse({ status: 200, description: 'Код успішно верифіковано' })
-  verifyOtp(@Body() dto: VerifyOtpDto) {
-    return {
-      success: true,
-      verified: true,
-      target: dto.target,
-      message: 'Номер успішно підтверджено. Продовжуйте реєстрацію.',
-    };
+  @ApiResponse({ status: 400, description: 'Помилка валідації вхідних даних або паролі не співпадають' })
+  @ApiResponse({ status: 409, description: 'Користувач із таким email, телефоном або нікнеймом уже існує' })
+  async register(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
   }
 
   @Post('login')
-  @ApiOperation({ summary: 'Авторизація в системі (отримання Access + Refresh токенів)' })
-  @ApiResponse({ status: 200, description: 'Успішна авторизація' })
-  login(@Body() dto: LoginDto) {
-    const isAdmin = dto.login.includes('admin') || dto.login.includes('owner');
-    return {
-      accessToken: 'mock_jwt_access_token_obsidian_2026',
-      refreshToken: 'mock_jwt_refresh_token_obsidian_2026',
-      expiresIn: 900,
-      user: {
-        id: '1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d',
-        login: dto.login,
-        role: isAdmin ? 'ADMIN' : 'CLIENT',
-        level: isAdmin ? 25 : 18,
-        avatarFrame: isAdmin ? 'frame_cyber_admin' : 'frame_pro_sniper',
-        balance: 450.0,
-      },
-    };
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Авторизація в системі за email, номером телефону або логіном і паролем',
+  })
+  @ApiResponse({ status: 200, description: 'Успішна авторизація (повертає JWT токени та профіль)' })
+  @ApiResponse({ status: 401, description: 'Невірний логін або пароль' })
+  async login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
+  }
+
+  @Post('otp/send')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Генерація та відправка одноразового цифрового коду (OTP)',
+    description: 'У dev API код OTP повертається безпосередньо у відповіді',
+  })
+  @ApiResponse({ status: 200, description: 'Код надіслано на вказаний телефон/email' })
+  async sendOtp(@Body() dto: SendOtpDto) {
+    return this.authService.sendOtp(dto);
+  }
+
+  @Post('otp/verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Перевірка та підтвердження OTP-коду',
+    description: 'Якщо акаунт існує, повертає токен для переходу далі',
+  })
+  @ApiResponse({ status: 200, description: 'Код успішно верифіковано' })
+  @ApiResponse({ status: 400, description: 'Невірний або прострочений код' })
+  async verifyOtp(@Body() dto: VerifyOtpDto) {
+    return this.authService.verifyOtp(dto);
+  }
+
+  @Post('otp/change-target')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Зміна контактного номера або email під час OTP-підтвердження',
+  })
+  @ApiResponse({ status: 200, description: 'Контакт успішно змінено та надіслано новий код' })
+  @ApiResponse({ status: 409, description: 'Новий контакт уже зайнятий іншим користувачем' })
+  async changeOtpTarget(@Body() dto: ChangeOtpTargetDto) {
+    return this.authService.changeOtpTarget(dto);
+  }
+
+  @Post('password-reset/request')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Запит на скидання пароля (генерація OTP-коду)',
+    description: 'Код для скидання пароля повертається у відповіді dev API',
+  })
+  @ApiResponse({ status: 200, description: 'Код для скидання пароля згенеровано' })
+  @ApiResponse({ status: 404, description: 'Користувача з таким email або телефоном не знайдено' })
+  async requestPasswordReset(@Body() dto: ForgotPasswordDto) {
+    return this.authService.requestPasswordReset(dto);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Аліас для запиту на скидання пароля' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.requestPasswordReset(dto);
+  }
+
+  @Post('password-reset/confirm')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Підтвердження скидання пароля за допомогою OTP-коду та встановлення нового пароля',
+  })
+  @ApiResponse({ status: 200, description: 'Пароль успішно змінено' })
+  @ApiResponse({ status: 400, description: 'Невірний або прострочений OTP-код' })
+  @ApiResponse({ status: 404, description: 'Користувача не знайдено' })
+  async confirmPasswordReset(@Body() dto: ResetPasswordDto) {
+    return this.authService.confirmPasswordReset(dto);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Аліас для підтвердження скидання пароля' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.confirmPasswordReset(dto);
   }
 
   @Post('refresh')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Оновлення пари JWT токенів' })
-  @ApiResponse({ status: 200, description: 'Токени оновлено' })
-  refresh(@Body() dto: RefreshTokenDto) {
-    return {
-      accessToken: 'new_mock_jwt_access_token_2026',
-      refreshToken: dto.refreshToken,
-      expiresIn: 900,
-    };
+  @ApiResponse({ status: 200, description: 'Токени успішно оновлено' })
+  @ApiResponse({ status: 401, description: 'Недійсний refresh token' })
+  async refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refreshToken(dto);
   }
 
   @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Вихід із системи (інвалідація сесії)' })
   @ApiResponse({ status: 200, description: 'Успішний вихід' })
-  logout() {
+  @ApiResponse({ status: 401, description: 'Необхідна авторизація' })
+  async logout() {
     return { message: 'Сесію успішно завершено' };
   }
 
   @Get('me')
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Отримання профілю поточного авторизованого користувача з рівнями та рамками' })
+  @ApiOperation({
+    summary: 'Отримання профілю поточного авторизованого користувача',
+  })
   @ApiResponse({ status: 200, description: 'Дані поточного користувача' })
-  getMe() {
+  @ApiResponse({ status: 401, description: 'Необхідна авторизація' })
+  async getMe(@CurrentUser('id') userId: string) {
+    return this.authService.getMe(userId);
+  }
+
+  @Get('admin-check')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Тестовий захищений ендпоінт тільки для ролі ADMIN',
+    description: 'Без токена: 401, з роллю CLIENT: 403, з роллю ADMIN: 200',
+  })
+  @ApiResponse({ status: 200, description: 'Доступ підтверджено для ADMIN' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden (чужа роль)' })
+  async adminCheck(@CurrentUser() user: any) {
     return {
-      id: '1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d',
-      username: 's1mple_pro',
-      email: 'player1@gmail.com',
-      phone: '+380993334455',
-      role: 'CLIENT',
-      status: 'ACTIVE',
-      level: 18,
-      experience: 3450,
-      avatarFrame: 'frame_pro_sniper',
-      bannerUrl: 'https://images.unsplash.com/photo-1542751371-adc38448a05e',
-      balance: 450.0,
-      bonusBalance: 80.0,
-      totalPlayTimeMinutes: 1240,
-      totalSpent: 1650.0,
-      visitsCount: 18,
+      message: 'Доступ дозволено: ви маєте права адміністратора клубу',
+      user,
+    };
+  }
+
+  @Get('client-check')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CLIENT)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Тестовий захищений ендпоінт тільки для ролі CLIENT',
+    description: 'Без токена: 401, з роллю ADMIN: 403, з роллю CLIENT: 200',
+  })
+  @ApiResponse({ status: 200, description: 'Доступ підтверджено для CLIENT' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden (чужа роль)' })
+  async clientCheck(@CurrentUser() user: any) {
+    return {
+      message: 'Доступ дозволено: ви маєте статус клієнта клубу',
+      user,
     };
   }
 }
