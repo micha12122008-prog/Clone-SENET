@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { localizeDynamicText } from '../i18n/localizeDynamicText'
 import { SHELL_LABELS, type ShellLocale } from '../i18n/shellLabels'
 import type { OpenApiSkeletonState } from '../types/openapi'
 
@@ -86,10 +87,13 @@ export function SplashScreen({
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 p-4 text-left">
               <div className="text-xs font-medium text-zinc-400">{t.splashLocationTitle}</div>
               <div className="mt-1 text-lg font-bold text-white">
-                {apiState.settings.workingHours}
+                {localizeDynamicText(apiState.settings.workingHours, locale)}
               </div>
-              <div className="mt-1 truncate text-xs text-zinc-400" title={apiState.settings.address}>
-                {apiState.settings.address}
+              <div
+                className="mt-1 truncate text-xs text-zinc-400"
+                title={localizeDynamicText(apiState.settings.address, locale)}
+              >
+                {localizeDynamicText(apiState.settings.address, locale)}
               </div>
             </div>
           </div>

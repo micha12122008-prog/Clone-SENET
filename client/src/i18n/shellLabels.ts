@@ -12,6 +12,8 @@ export interface OnboardingStepTranslation {
 export interface ClientTranslations {
   // Shell
   appBadge: string
+  navHome: string
+  navCatalog: string
   navSplash: string
   navOnboarding: string
   navLogin: string
@@ -201,6 +203,8 @@ export type ShellLabels = ClientTranslations
 export const SHELL_LABELS: Record<ShellLocale, ClientTranslations> = {
   uk: {
     appBadge: 'Клієнтська оболонка',
+    navHome: 'Головна',
+    navCatalog: 'Каталог зон',
     navSplash: 'Заставка',
     navOnboarding: 'Онбординг',
     navLogin: 'Вхід',
@@ -216,7 +220,7 @@ export const SHELL_LABELS: Record<ShellLocale, ClientTranslations> = {
     freePlacesLabel: 'Вільні ПК',
     refreshApiButton: 'Оновити API',
     footerShellNote: 'OBSIDIAN PC CLUB • Клієнтський веб-додаток',
-    weekBadge: 'Тиждень 2 • Реєстрація та вхід',
+    weekBadge: 'Тиждень 3 • Головна і каталог зон',
     logoutNotice: 'Ви успішно вийшли з облікового запису.',
 
     splashAria: 'Заставка OBSIDIAN PC CLUB',
@@ -426,6 +430,8 @@ export const SHELL_LABELS: Record<ShellLocale, ClientTranslations> = {
 
   en: {
     appBadge: 'Client Shell',
+    navHome: 'Home',
+    navCatalog: 'Zones Catalog',
     navSplash: 'Splash',
     navOnboarding: 'Onboarding',
     navLogin: 'Sign In',
@@ -441,7 +447,7 @@ export const SHELL_LABELS: Record<ShellLocale, ClientTranslations> = {
     freePlacesLabel: 'Free PCs',
     refreshApiButton: 'Refresh API',
     footerShellNote: 'OBSIDIAN PC CLUB • Client Web Application',
-    weekBadge: 'Week 2 • Registration & Sign In',
+    weekBadge: 'Week 3 • Home & Zones Catalog',
     logoutNotice: 'You have successfully signed out.',
 
     splashAria: 'OBSIDIAN PC CLUB Splash Screen',
@@ -453,7 +459,7 @@ export const SHELL_LABELS: Record<ShellLocale, ClientTranslations> = {
     splashPlacesTitle: 'Seat Status (OpenAPI)',
     splashFreePrefix: 'Available',
     splashOf: 'of',
-    splashStatusesNote: 'Statuses: вільно • зайнято • бронь • ремонт',
+    splashStatusesNote: 'Statuses: free • busy • booked • maintenance',
     splashLocationTitle: 'Location & Hours',
     splashLoadingApi: 'Loading OpenAPI contract...',
     splashReadyApi: 'Client skeleton initialized',
@@ -466,7 +472,7 @@ export const SHELL_LABELS: Record<ShellLocale, ClientTranslations> = {
     onboardingZonesCountSuffix: 'zones',
     onboardingPerHour: 'UAH/hr',
     onboardingFreeSeats: 'Available seats',
-    onboardingStatusFree: 'status: вільно',
+    onboardingStatusFree: 'status: free',
     onboardingPlaceEnumLabel: 'Fixed PlaceStatus enum:',
     onboardingTariffsHeader: 'OpenAPI Data • GET /api/tariffs',
     onboardingTariffsCountSuffix: 'tariffs',

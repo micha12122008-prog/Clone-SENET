@@ -1,4 +1,10 @@
 import { useState } from 'react'
+import {
+  localizeDynamicText,
+  localizePaymentMethod,
+  localizePlaceStatus,
+  localizeTournamentStatus,
+} from '../i18n/localizeDynamicText'
 import { SHELL_LABELS, type ShellLocale } from '../i18n/shellLabels'
 import {
   ORDER_STATUSES,
@@ -133,12 +139,16 @@ export function OnboardingScreen({
                       className="rounded-xl border border-zinc-800/80 bg-zinc-900/80 p-3"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-white">{zone.name}</span>
+                        <span className="font-semibold text-white">
+                          {localizeDynamicText(zone.name, locale)}
+                        </span>
                         <span className="font-mono text-xs font-bold text-violet-300">
                           {zone.baseHourlyRate} {t.onboardingPerHour}
                         </span>
                       </div>
-                      <p className="mt-1 text-xs text-zinc-400">{zone.description}</p>
+                      <p className="mt-1 text-xs text-zinc-400">
+                        {localizeDynamicText(zone.description, locale)}
+                      </p>
                       <div className="mt-2 flex items-center justify-between text-[11px] text-zinc-400">
                         <span>
                           {t.onboardingFreeSeats}: {zone.availableComputers}/{zone.totalComputers}
@@ -157,7 +167,7 @@ export function OnboardingScreen({
                         key={status}
                         className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 font-mono text-xs text-zinc-200"
                       >
-                        {status}
+                        {localizePlaceStatus(status, locale)}
                       </span>
                     ))}
                   </div>
@@ -183,7 +193,9 @@ export function OnboardingScreen({
                       className="flex items-center justify-between rounded-xl border border-zinc-800/80 bg-zinc-900/80 p-3"
                     >
                       <div>
-                        <div className="text-sm font-semibold text-white">{tariff.name}</div>
+                        <div className="text-sm font-semibold text-white">
+                          {localizeDynamicText(tariff.name, locale)}
+                        </div>
                         <div className="text-xs text-zinc-400">
                           {t.onboardingTypePrefix}: {tariff.type}
                           {tariff.durationMinutes
@@ -206,7 +218,7 @@ export function OnboardingScreen({
                         key={method}
                         className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-0.5 font-mono text-xs text-zinc-200"
                       >
-                        {method}
+                        {localizePaymentMethod(method, locale)}
                       </span>
                     ))}
                   </div>
@@ -249,7 +261,7 @@ export function OnboardingScreen({
                         key={status}
                         className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 font-mono text-xs text-emerald-200"
                       >
-                        {status}
+                        {localizeTournamentStatus(status, locale)}
                       </span>
                     ))}
                   </div>

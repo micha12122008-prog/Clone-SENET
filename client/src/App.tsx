@@ -7,7 +7,9 @@ import {
   OPENAPI_FALLBACK_ZONES,
   fetchOpenApiSkeleton,
 } from './api/openapiClient'
+import { CatalogScreen } from './components/CatalogScreen'
 import { ClientCabinetView } from './components/ClientCabinetView'
+import { HomeScreen } from './components/HomeScreen'
 import { LoginScreen } from './components/LoginScreen'
 import { OnboardingScreen } from './components/OnboardingScreen'
 import { OpenApiStubView } from './components/OpenApiStubView'
@@ -15,11 +17,14 @@ import { OtpScreen } from './components/OtpScreen'
 import { PasswordResetScreen } from './components/PasswordResetScreen'
 import { RegisterScreen } from './components/RegisterScreen'
 import { SplashScreen } from './components/SplashScreen'
+import { localizeDynamicText } from './i18n/localizeDynamicText'
 import { SHELL_LABELS, type ShellLocale } from './i18n/shellLabels'
 import type { AuthSession, AuthUserDto, DevOtpResult } from './types/auth'
 import type { OpenApiSkeletonState } from './types/openapi'
 
 type ClientScreenView =
+  | 'home'
+  | 'catalog'
   | 'splash'
   | 'onboarding'
   | 'login'
@@ -30,7 +35,7 @@ type ClientScreenView =
   | 'openapi'
 
 export function App() {
-  const [activeView, setActiveView] = useState<ClientScreenView>('login')
+  const [activeView, setActiveView] = useState<ClientScreenView>('home')
   const [shellLocale, setShellLocale] = useState<ShellLocale>('uk')
   const [isLoadingApi, setIsLoadingApi] = useState<boolean>(true)
   const [apiState, setApiState] = useState<OpenApiSkeletonState>(() => ({
@@ -85,7 +90,11 @@ export function App() {
     <div className="flex min-h-svh flex-col bg-zinc-950 text-zinc-100">
       <header className="sticky top-0 z-30 border-b border-zinc-800/90 bg-zinc-950/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setActiveView('home')}
+            className="flex cursor-pointer items-center gap-3 text-left"
+          >
             <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-violet-500/40 bg-violet-500/15 font-mono text-sm font-extrabold text-violet-300">
               OB
             </div>
@@ -100,9 +109,33 @@ export function App() {
               </div>
               <div className="text-[11px] text-zinc-400">{labels.weekBadge}</div>
             </div>
-          </div>
+          </button>
 
           <nav aria-label="Navigation" className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setActiveView('home')}
+              className={`cursor-pointer rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                activeView === 'home'
+                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/30'
+                  : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
+              }`}
+            >
+              {labels.navHome}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveView('catalog')}
+              className={`cursor-pointer rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                activeView === 'catalog'
+                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/30'
+                  : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
+              }`}
+            >
+              {labels.navCatalog}
+            </button>
+
             <button
               type="button"
               onClick={() => setActiveView('splash')}
@@ -231,6 +264,24 @@ export function App() {
       </header>
 
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-4 py-4 sm:px-6">
+        {activeView === 'home' && (
+          <HomeScreen
+            locale={shellLocale}
+            session={authSession}
+            onNavigateCatalog={() => setActiveView('catalog')}
+            onNavigateCabinet={() => setActiveView('cabinet')}
+            onNavigateLogin={() => setActiveView('login')}
+            onNavigateRegister={() => setActiveView('register')}
+          />
+        )}
+
+        {activeView === 'catalog' && (
+          <CatalogScreen
+            locale={shellLocale}
+            onBackToHome={() => setActiveView('home')}
+          />
+        )}
+
         {activeView === 'splash' && (
           <SplashScreen
             locale={shellLocale}
@@ -258,7 +309,7 @@ export function App() {
             onLoggedIn={(session) => {
               setAuthSession(session)
               setLoginNotice(null)
-              setActiveView('cabinet')
+              setActiveView('home')
             }}
             onSwitchToRegister={() => {
               setLoginNotice(null)
@@ -296,7 +347,7 @@ export function App() {
             pendingPassword={pendingPassword}
             onVerified={(session) => {
               setAuthSession(session)
-              setActiveView('cabinet')
+              setActiveView('home')
             }}
             onBackToRegister={() => setActiveView('register')}
           />
@@ -341,7 +392,9 @@ export function App() {
           <div className="flex flex-wrap items-center gap-4">
             <span>
               {labels.workingHoursLabel}:{' '}
-              <strong className="text-zinc-200">{apiState.settings.workingHours}</strong>
+              <strong className="text-zinc-200">
+                {localizeDynamicText(apiState.settings.workingHours, shellLocale)}
+              </strong>
             </span>
             <span>
               {labels.freePlacesLabel}:{' '}
