@@ -2,7 +2,7 @@ import type { DashboardSnapshot } from "./dashboard.types";
 
 const NO_DATA = { status: "no-data" } as const;
 
-const dayFormatter = new Intl.DateTimeFormat("uk-UA", {
+const dayFormatter = new Intl.DateTimeFormat("uk-UA", {//звернути увагу при інтеграції перекладу(i18N)
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
