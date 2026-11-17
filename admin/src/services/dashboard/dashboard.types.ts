@@ -1,5 +1,4 @@
-/** Стан одного віджета: або даних немає, або є значення від API. */
-export type WidgetData<T> = { status: "no-data" } | { status: "ready"; value: T };
+export type WidgetData<T> = { status: "no-data" } | { status: "ready"; value: T };//стан віджета
 
 export interface OccupancyValue {
     percent: number;

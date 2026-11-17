@@ -4,7 +4,7 @@ const ROLE_KEY = "super-secret-role";
 export type UserRole = "admin" | "client";
 
 //localStorage => zustand-persist,
-export const tokenStorage = {
+export const tokenStorage = {//об'єкт абстракція над localStorage;
   getAccess: () => localStorage.getItem(ACCESS_KEY),
   setAccess: (token: string) => localStorage.setItem(ACCESS_KEY, token),
   getRole: (): UserRole | null => {
