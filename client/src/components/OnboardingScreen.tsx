@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SHELL_LABELS, type ShellLocale } from '../i18n/shellLabels'
 import {
   ORDER_STATUSES,
   PAYMENT_METHODS,
@@ -8,66 +9,23 @@ import {
 } from '../types/openapi'
 
 interface OnboardingScreenProps {
+  locale?: ShellLocale
   apiState: OpenApiSkeletonState
   onFinishOnboarding: () => void
   onBackToSplash: () => void
 }
 
-interface OnboardingStep {
-  id: number
-  badge: string
-  title: string
-  description: string
-  highlights: string[]
-}
-
-const ONBOARDING_STEPS: OnboardingStep[] = [
-  {
-    id: 1,
-    badge: 'Крок 1 із 3 • Зали та обладнання',
-    title: 'Обирайте ігрову зону: PC, PS5 або VR',
-    description:
-      'У клубі OBSIDIAN PC CLUB доступні зали Standard, VIP RTX 4090, командний Bootcamp 5×5, консольна зона PS5 та VR-кімната. Актуальна зайнятість місць завантажується з API.',
-    highlights: [
-      'Прозорий розподіл за типами пристроїв: потужні ПК, консолі PlayStation та VR-станції',
-      'Фіксовані статуси місць у системі: вільно, зайнято, бронь, ремонт',
-      'Характеристики обладнання та базовий погодинний тариф у гривнях для кожного залу',
-    ],
-  },
-  {
-    id: 2,
-    badge: 'Крок 2 із 3 • Бронювання та пакети',
-    title: 'Бронюйте місце на 1–3 години або пакет 3+1',
-    description:
-      'Вибирайте зручну дату, час і тривалість або комбо-пакет 3+1 (місце бронюється на 4 години, а до сплати рахується 3 години). Для команд доступний вибір сусідніх місць.',
-    highlights: [
-      'Тимчасове утримання обраного місця на 10 хвилин під час оформлення броні',
-      'Додаткові опції до броні: напої, снеки, другий геймпад або супровід VR-оператора',
-      'Безкоштовне скасування чи перенесення броні не пізніше ніж за 2 години до старту',
-    ],
-  },
-  {
-    id: 3,
-    badge: 'Крок 3 із 3 • Сесія, бар і турніри',
-    title: 'Керуйте живою сесією, замовляйте з бару та змагайтеся',
-    description:
-      'Після швидкого чек-іну за QR-кодом у клубі відстежуйте таймер сесії, поповнюйте баланс, замовляйте позиції з меню бару прямо до столу та реєструйтеся на турніри.',
-    highlights: [
-      'Єдина шкала статусів замовлення бару: нове (new) → готується (preparing) → видано (issued)',
-      'Турніри з CS2, Dota 2, Valorant та FIFA зі статусами: реєстрація, live, завершено',
-      'Чотири клубні досягнення: 10 годин, 50 годин, «Рання пташка» (до 08:00) та 10 напоїв за сесію',
-    ],
-  },
-]
-
 export function OnboardingScreen({
+  locale = 'uk',
   apiState,
   onFinishOnboarding,
   onBackToSplash,
 }: OnboardingScreenProps) {
+  const t = SHELL_LABELS[locale]
+  const steps = t.onboardingSteps
   const [stepIndex, setStepIndex] = useState(0)
-  const currentStep = ONBOARDING_STEPS[stepIndex]
-  const isLastStep = stepIndex === ONBOARDING_STEPS.length - 1
+  const currentStep = steps[stepIndex]
+  const isLastStep = stepIndex === steps.length - 1
 
   const handleNext = () => {
     if (isLastStep) {
@@ -87,14 +45,13 @@ export function OnboardingScreen({
 
   return (
     <section
-      aria-label="Короткий онбординг клієнта"
+      aria-label={t.onboardingAria}
       className="mx-auto flex w-full max-w-4xl flex-col py-4 sm:py-8"
     >
       <div className="rounded-3xl border border-zinc-800 bg-zinc-900/90 p-6 shadow-2xl sm:p-10">
-        {/* Верхній рядок: кроки та кнопка пропуску */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 pb-5">
           <div className="flex items-center gap-2">
-            {ONBOARDING_STEPS.map((step, idx) => {
+            {steps.map((step, idx) => {
               const isActive = idx === stepIndex
               const isCompleted = idx < stepIndex
               return (
@@ -111,9 +68,7 @@ export function OnboardingScreen({
                   }`}
                 >
                   <span>0{step.id}</span>
-                  <span className="hidden sm:inline">
-                    {idx === 0 ? 'Зони' : idx === 1 ? 'Бронювання' : 'Сесія та бар'}
-                  </span>
+                  <span className="hidden sm:inline">{step.shortTab}</span>
                 </button>
               )
             })}
@@ -124,11 +79,10 @@ export function OnboardingScreen({
             onClick={onFinishOnboarding}
             className="cursor-pointer text-xs font-medium text-zinc-400 underline-offset-4 transition hover:text-white hover:underline"
           >
-            Пропустити онбординг →
+            {t.onboardingSkipBtn}
           </button>
         </div>
 
-        {/* Основний вміст поточного кроку */}
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12">
           <div className="flex flex-col justify-between lg:col-span-7">
             <div>
@@ -160,16 +114,15 @@ export function OnboardingScreen({
             </div>
           </div>
 
-          {/* Права панель: живі дані із заглушок скелета OpenAPI відповідно до кроку */}
           <div className="flex flex-col justify-between rounded-2xl border border-zinc-800 bg-zinc-950 p-5 lg:col-span-5">
             {stepIndex === 0 && (
               <div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold tracking-wider text-zinc-400 uppercase">
-                    Дані OpenAPI • GET /api/zones
+                    {t.onboardingZonesHeader}
                   </span>
                   <span className="rounded bg-zinc-800 px-2 py-0.5 font-mono text-[11px] text-violet-300">
-                    {apiState.zones.length} зони
+                    {apiState.zones.length} {t.onboardingZonesCountSuffix}
                   </span>
                 </div>
 
@@ -182,22 +135,22 @@ export function OnboardingScreen({
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-white">{zone.name}</span>
                         <span className="font-mono text-xs font-bold text-violet-300">
-                          {zone.baseHourlyRate} грн/год
+                          {zone.baseHourlyRate} {t.onboardingPerHour}
                         </span>
                       </div>
                       <p className="mt-1 text-xs text-zinc-400">{zone.description}</p>
                       <div className="mt-2 flex items-center justify-between text-[11px] text-zinc-400">
                         <span>
-                          Вільні місця: {zone.availableComputers}/{zone.totalComputers}
+                          {t.onboardingFreeSeats}: {zone.availableComputers}/{zone.totalComputers}
                         </span>
-                        <span className="text-emerald-400">статус: вільно</span>
+                        <span className="text-emerald-400">{t.onboardingStatusFree}</span>
                       </div>
                     </div>
                   ))}
                 </div>
 
                 <div className="mt-4 border-t border-zinc-800 pt-3">
-                  <div className="text-[11px] text-zinc-400">Фіксований enum статусів місця:</div>
+                  <div className="text-[11px] text-zinc-400">{t.onboardingPlaceEnumLabel}</div>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {PLACE_STATUSES.map((status) => (
                       <span
@@ -216,10 +169,10 @@ export function OnboardingScreen({
               <div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold tracking-wider text-zinc-400 uppercase">
-                    Дані OpenAPI • GET /api/tariffs
+                    {t.onboardingTariffsHeader}
                   </span>
                   <span className="rounded bg-zinc-800 px-2 py-0.5 font-mono text-[11px] text-violet-300">
-                    {apiState.tariffs.length} тарифи
+                    {apiState.tariffs.length} {t.onboardingTariffsCountSuffix}
                   </span>
                 </div>
 
@@ -232,19 +185,21 @@ export function OnboardingScreen({
                       <div>
                         <div className="text-sm font-semibold text-white">{tariff.name}</div>
                         <div className="text-xs text-zinc-400">
-                          Тип: {tariff.type}
-                          {tariff.durationMinutes ? ` • ${tariff.durationMinutes} хв` : ''}
+                          {t.onboardingTypePrefix}: {tariff.type}
+                          {tariff.durationMinutes
+                            ? ` • ${tariff.durationMinutes} ${t.onboardingMinutesSuffix}`
+                            : ''}
                         </div>
                       </div>
                       <span className="rounded-lg bg-violet-500/15 px-2.5 py-1 font-mono text-xs font-bold text-violet-300">
-                        {tariff.price} грн
+                        {tariff.price} UAH
                       </span>
                     </div>
                   ))}
                 </div>
 
                 <div className="mt-4 border-t border-zinc-800 pt-3">
-                  <div className="text-[11px] text-zinc-400">Фіксований enum способів оплати:</div>
+                  <div className="text-[11px] text-zinc-400">{t.onboardingPaymentEnumLabel}</div>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {PAYMENT_METHODS.map((method) => (
                       <span
@@ -263,16 +218,14 @@ export function OnboardingScreen({
               <div className="space-y-4">
                 <div>
                   <span className="text-xs font-semibold tracking-wider text-zinc-400 uppercase">
-                    Фіксовані контракти Тижня 1
+                    {t.onboardingContractsHeader}
                   </span>
-                  <p className="mt-1 text-xs text-zinc-400">
-                    Статуси замовлень бару та турнірів узгоджені між клієнтом, адмінкою та NestJS API:
-                  </p>
+                  <p className="mt-1 text-xs text-zinc-400">{t.onboardingContractsDesc}</p>
                 </div>
 
                 <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-3">
                   <div className="text-xs font-semibold text-zinc-300">
-                    Статуси замовлення бару (OrderStatus):
+                    {t.onboardingOrderEnumLabel}
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {ORDER_STATUSES.map((status) => (
@@ -288,7 +241,7 @@ export function OnboardingScreen({
 
                 <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-3">
                   <div className="text-xs font-semibold text-zinc-300">
-                    Статуси турнірів (TournamentStatus):
+                    {t.onboardingTournamentEnumLabel}
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {TOURNAMENT_STATUSES.map((status) => (
@@ -303,28 +256,25 @@ export function OnboardingScreen({
                 </div>
 
                 <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-3 text-xs text-zinc-300">
-                  <div className="font-semibold text-white">Акція бару «Димочок»</div>
-                  <p className="mt-1 text-zinc-400">
-                    Спеціальна позиція меню бару з доставкою до ігрового місця під час активної сесії.
-                  </p>
+                  <div className="font-semibold text-white">{t.onboardingBarPromoTitle}</div>
+                  <p className="mt-1 text-zinc-400">{t.onboardingBarPromoDesc}</p>
                 </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Нижня панель керування кроками */}
         <div className="mt-8 flex flex-col-reverse items-center justify-between gap-3 border-t border-zinc-800 pt-6 sm:flex-row">
           <button
             type="button"
             onClick={handlePrev}
             className="w-full cursor-pointer rounded-xl border border-zinc-700 bg-zinc-800/70 px-5 py-3 text-sm font-medium text-zinc-200 transition hover:bg-zinc-800 sm:w-auto"
           >
-            {stepIndex === 0 ? '← Повернутися на заставку' : '← Попередній крок'}
+            {stepIndex === 0 ? t.onboardingBackToSplashBtn : t.onboardingPrevStepBtn}
           </button>
 
           <div className="text-xs font-medium text-zinc-400">
-            Крок {stepIndex + 1} із {ONBOARDING_STEPS.length}
+            {t.onboardingStepCounter(stepIndex + 1, steps.length)}
           </div>
 
           <button
@@ -332,11 +282,10 @@ export function OnboardingScreen({
             onClick={handleNext}
             className="w-full cursor-pointer rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-600/25 transition hover:bg-violet-500 sm:w-auto"
           >
-            {isLastStep ? 'Завершити онбординг ✓' : 'Наступний крок →'}
+            {isLastStep ? t.onboardingFinishBtn : t.onboardingNextStepBtn}
           </button>
         </div>
       </div>
     </section>
   )
 }
-

@@ -1,0 +1,452 @@
+{
+  "info": {
+    "name": "Week 3 - Zones, Computers, Maintenance & Tariffs",
+    "description": "Колекція запитів Тижня 3 (Obsidian PC CLUB): Зони, Місця/ПК, Журнал ремонту, Тарифи",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Авторизація (Отримати токен ADMIN)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"login\": \"admin@obsidianclub.ua\",\n  \"password\": \"Password123!\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "login"]
+        },
+        "description": "Вхід адміністратора для отримання accessToken. Скопіюйте accessToken у змінну колекції adminToken."
+      }
+    },
+    {
+      "name": "1. Зони (Zones)",
+      "item": [
+        {
+          "name": "GET Список зон (зі статистикою місць)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/zones",
+              "host": ["{{baseUrl}}"],
+              "path": ["zones"]
+            }
+          }
+        },
+        {
+          "name": "GET Список зон за типом пристрою (PC, PS, VR)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/zones?deviceType=PC",
+              "host": ["{{baseUrl}}"],
+              "path": ["zones"],
+              "query": [{ "key": "deviceType", "value": "PC" }]
+            }
+          }
+        },
+        {
+          "name": "GET Зона за ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/zones/zone-1-standard",
+              "host": ["{{baseUrl}}"],
+              "path": ["zones", "zone-1-standard"]
+            }
+          }
+        },
+        {
+          "name": "POST Створити нову зону (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bootcamp Alpha 5x5\",\n  \"description\": \"Ізольована звукоізольована кімната для турнірних команд\",\n  \"deviceType\": \"PC\",\n  \"baseHourlyRate\": 85.0,\n  \"colorHex\": \"#10B981\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/zones",
+              "host": ["{{baseUrl}}"],
+              "path": ["zones"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Редагувати зону (ADMIN)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"baseHourlyRate\": 65.0,\n  \"description\": \"Оновлений опис Standard Zone\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/zones/zone-1-standard",
+              "host": ["{{baseUrl}}"],
+              "path": ["zones", "zone-1-standard"]
+            }
+          }
+        },
+        {
+          "name": "DELETE Видалити зону (ADMIN)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/zones/zone-temp",
+              "host": ["{{baseUrl}}"],
+              "path": ["zones", "zone-temp"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Місця та Комп'ютери (Computers & Seats)",
+      "item": [
+        {
+          "name": "GET Список усіх ПК зі статусами enum",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/computers",
+              "host": ["{{baseUrl}}"],
+              "path": ["computers"]
+            }
+          }
+        },
+        {
+          "name": "GET Фільтр вільних ПК (status=вільно)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/computers?status=вільно",
+              "host": ["{{baseUrl}}"],
+              "path": ["computers"],
+              "query": [{ "key": "status", "value": "вільно" }]
+            }
+          }
+        },
+        {
+          "name": "GET Схема клубу для карти залу",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/computers/map",
+              "host": ["{{baseUrl}}"],
+              "path": ["computers", "map"]
+            }
+          }
+        },
+        {
+          "name": "GET ПК за ID (з історією ремонтів)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/computers/comp-3",
+              "host": ["{{baseUrl}}"],
+              "path": ["computers", "comp-3"]
+            }
+          }
+        },
+        {
+          "name": "POST Створити нове місце (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"number\": 15,\n  \"name\": \"PC-15\",\n  \"zoneId\": \"zone-1-standard\",\n  \"specs\": {\n    \"cpu\": \"Intel Core i5-13400F\",\n    \"gpu\": \"NVIDIA RTX 4060 Ti 8GB\",\n    \"ram\": \"16GB DDR4\",\n    \"monitor\": \"24.5\\\" ZOWIE 240Hz\"\n  },\n  \"coordinateX\": 420.0,\n  \"coordinateY\": 100.0,\n  \"row\": 1,\n  \"col\": 5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/computers",
+              "host": ["{{baseUrl}}"],
+              "path": ["computers"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Зберегти координати ПК на карті (ADMIN)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"x\": 140.0,\n  \"y\": 160.0,\n  \"row\": 1,\n  \"col\": 2\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/computers/comp-1/position",
+              "host": ["{{baseUrl}}"],
+              "path": ["computers", "comp-1", "position"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Зміна статусу на 'ремонт' (з фіксацією причини) (ADMIN)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ремонт\",\n  \"description\": \"Залипає лівий клік миші Razer DeathAdder v3\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/computers/comp-1/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["computers", "comp-1", "status"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Повернення місця у статус 'вільно' (закриває ремонт) (ADMIN)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"вільно\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/computers/comp-1/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["computers", "comp-1", "status"]
+            }
+          }
+        },
+        {
+          "name": "DELETE Видалити ПК (ADMIN)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/computers/comp-temp",
+              "host": ["{{baseUrl}}"],
+              "path": ["computers", "comp-temp"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Журнал ремонту (Maintenance Log)",
+      "item": [
+        {
+          "name": "GET Журнал ремонтів клубу",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/repairs",
+              "host": ["{{baseUrl}}"],
+              "path": ["repairs"]
+            }
+          }
+        },
+        {
+          "name": "GET Тільки активні ремонти (activeOnly=true)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/repairs?activeOnly=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["repairs"],
+              "query": [{ "key": "activeOnly", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "POST Створити запис ремонту (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placeId\": \"comp-5\",\n  \"description\": \"Заміна амбушур на навушниках\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/repairs",
+              "host": ["{{baseUrl}}"],
+              "path": ["repairs"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Завершити ремонт (ADMIN)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Амбушури замінено, працездатність відновлено\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/repairs/repair-init-1/finish",
+              "host": ["{{baseUrl}}"],
+              "path": ["repairs", "repair-init-1", "finish"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Тарифи (Tariffs)",
+      "item": [
+        {
+          "name": "GET Список усіх тарифів клубу",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/tariffs",
+              "host": ["{{baseUrl}}"],
+              "path": ["tariffs"]
+            }
+          }
+        },
+        {
+          "name": "GET Тариф за ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/tariffs/tariff-1",
+              "host": ["{{baseUrl}}"],
+              "path": ["tariffs", "tariff-1"]
+            }
+          }
+        },
+        {
+          "name": "POST Створити новий тариф (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"1 Година Bootcamp Alpha\",\n  \"type\": \"HOURLY\",\n  \"price\": 85.0,\n  \"durationMinutes\": 60,\n  \"zoneId\": \"zone-1-standard\",\n  \"description\": \"Погодинна гра у зоні Alpha\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tariffs",
+              "host": ["{{baseUrl}}"],
+              "path": ["tariffs"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Редагувати тариф (ADMIN)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 65.0,\n  \"description\": \"Оновлена ціна Standard\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tariffs/tariff-1",
+              "host": ["{{baseUrl}}"],
+              "path": ["tariffs", "tariff-1"]
+            }
+          }
+        },
+        {
+          "name": "POST Розрахунок вартості з промокодом WELCOME (-15%)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tariffId\": \"tariff-1\",\n  \"durationMinutes\": 120,\n  \"promoCode\": \"WELCOME\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tariffs/calculate",
+              "host": ["{{baseUrl}}"],
+              "path": ["tariffs", "calculate"]
+            }
+          }
+        },
+        {
+          "name": "POST Валідація промокоду",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"WELCOME\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tariffs/promotions/validate",
+              "host": ["{{baseUrl}}"],
+              "path": ["tariffs", "promotions", "validate"]
+            }
+          }
+        },
+        {
+          "name": "DELETE Видалити тариф (ADMIN)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tariffs/tariff-temp",
+              "host": ["{{baseUrl}}"],
+              "path": ["tariffs", "tariff-temp"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
