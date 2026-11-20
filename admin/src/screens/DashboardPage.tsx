@@ -1,5 +1,6 @@
-import { StubPage } from "./StubPage";
+import {DashboardWidgets} from "../widgets/dashboard";
+
 
 export function DashboardPage() {
-    return <StubPage title="Дашборд" />;
+    return <DashboardWidgets />;
 }

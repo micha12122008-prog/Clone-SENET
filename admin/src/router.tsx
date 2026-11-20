@@ -1,5 +1,7 @@
 import { createBrowserRouter } from "react-router";
+import { RequireAuth } from "./ui/RequireAuth";
 import { AdminLayout } from "./layouts/AdminLayout";
+import { LoginPage } from "./screens/LoginPage";
 import { DashboardPage } from "./screens/DashboardPage";
 import { BookingsPage } from "./screens/BookingsPage";
 import { ZonesPage } from "./screens/ZonesPage";
@@ -10,17 +12,23 @@ import { AnalyticsPage } from "./screens/AnalyticsPage";
 import { NotFoundPage } from "./screens/NotFoundPage";
 
 export const router = createBrowserRouter([
+    { path: "/login", element: <LoginPage /> },
     {
-        element: <AdminLayout />,
+        element: <RequireAuth />,
         children: [
-            { path: "/", element: <DashboardPage /> },
-            { path: "/bookings", element: <BookingsPage /> },
-            { path: "/zones", element: <ZonesPage /> },
-            { path: "/bar", element: <BarPage /> },
-            { path: "/tournaments", element: <TournamentsPage /> },
-            { path: "/clients", element: <ClientsPage /> },
-            { path: "/analytics", element: <AnalyticsPage /> },
-            { path: "*", element: <NotFoundPage /> },
+            {
+                element: <AdminLayout />,
+                children: [
+                    { path: "/", element: <DashboardPage /> },
+                    { path: "/bookings", element: <BookingsPage /> },
+                    { path: "/zones", element: <ZonesPage /> },
+                    { path: "/bar", element: <BarPage /> },
+                    { path: "/tournaments", element: <TournamentsPage /> },
+                    { path: "/clients", element: <ClientsPage /> },
+                    { path: "/analytics", element: <AnalyticsPage /> },
+                    { path: "*", element: <NotFoundPage /> },
+                ],
+            },
         ],
     },
 ]);

@@ -2,9 +2,13 @@
 import { NavLink, Outlet } from "react-router";
 import { NAV_ITEMS } from "../config/routes";
 import { cn } from "../helpers/cn";
+import { useAuthStore } from "../hooks/auth.store";
+import { Button } from "../ui";
 import "./AdminLayout.css";
 
 export function AdminLayout() {
+    const logout = useAuthStore((state) => state.logout);
+
     return (
         <div className="admin-layout">
             <aside className="admin-sidebar">
@@ -31,6 +35,12 @@ export function AdminLayout() {
                         </NavLink>
                     ))}
                 </nav>
+
+                <div className="admin-sidebar-footer">
+                    <Button variant="ghost" size="sm" onClick={logout}>
+                        Вийти
+                    </Button>
+                </div>
             </aside>
 
             <main className="admin-content">
