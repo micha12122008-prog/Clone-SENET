@@ -1,146 +1,136 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { CalculatePriceDto, CreateTariffDto, ValidatePromoDto } from './dto/tariffs.dto';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { TariffType, UserRole } from '@prisma/client';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import {
+  CalculatePriceDto,
+  CreateTariffDto,
+  TariffResponseDto,
+  UpdateTariffDto,
+  ValidatePromoDto,
+} from './dto/tariffs.dto';
+import { TariffsService } from './tariffs.service';
 
 @ApiTags('Tariffs')
 @Controller('tariffs')
 export class TariffsController {
+  constructor(private readonly tariffsService: TariffsService) {}
+
   @Get()
-  @ApiOperation({ summary: 'Список усіх тарифів клубу' })
-  getTariffs() {
-    return [
-      {
-        id: 'tariff-1',
-        name: '1 Година Standard',
-        type: 'HOURLY',
-        price: 50.0,
-        zoneName: 'Standard Zone',
-        isActive: true,
-      },
-      {
-        id: 'tariff-2',
-        name: '3 Години Пакет',
-        type: 'PACKAGE',
-        price: 130.0,
-        durationMinutes: 180,
-        zoneName: 'Standard Zone',
-        isActive: true,
-      },
-      {
-        id: 'tariff-3',
-        name: '5 Годин Пакет',
-        type: 'PACKAGE',
-        price: 200.0,
-        durationMinutes: 300,
-        isActive: true,
-      },
-      {
-        id: 'tariff-4',
-        name: 'Ніч у Клубі (22:00 - 08:00)',
-        type: 'NIGHT',
-        price: 280.0,
-        durationMinutes: 600,
-        startTime: '22:00',
-        endTime: '08:00',
-        isActive: true,
-      },
-    ];
-  }
-
-  @Get('available')
-  @ApiOperation({ summary: 'Тарифи, доступні на поточний час для обраної зони' })
-  @ApiQuery({ name: 'zoneId', required: false })
-  getAvailableTariffs(@Query('zoneId') zoneId?: string) {
-    return [
-      {
-        id: 'tariff-1',
-        name: '1 Година Standard',
-        type: 'HOURLY',
-        price: 50.0,
-        isAvailableNow: true,
-      },
-      {
-        id: 'tariff-2',
-        name: '3 Години Пакет',
-        type: 'PACKAGE',
-        price: 130.0,
-        isAvailableNow: true,
-      },
-    ];
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Детальна інформація про тариф' })
-  getTariffById(@Param('id') id: string) {
-    return {
-      id,
-      name: '3 Години Пакет',
-      type: 'PACKAGE',
-      price: 130.0,
-      durationMinutes: 180,
-      isActive: true,
-    };
-  }
-
-  @Post()
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Створення нового тарифу (Admin/Owner)' })
-  createTariff(@Body() dto: CreateTariffDto) {
-    return {
-      id: 'tariff-new',
-      ...dto,
-      isActive: true,
-    };
-  }
-
-  @Patch(':id')
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Редагування тарифу' })
-  updateTariff(@Param('id') id: string, @Body() dto: Partial<CreateTariffDto>) {
-    return {
-      id,
-      ...dto,
-      message: 'Тариф оновлено',
-    };
-  }
-
-  @Delete(':id')
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Деактивація/видалення тарифу' })
-  deleteTariff(@Param('id') id: string) {
-    return { message: `Тариф ${id} деактивовано` };
+  @ApiOperation({
+    summary: 'Список усіх тарифів клубу',
+    description: 'Повертає перелік доступних погодинних та пакетних тарифів у гривнях.',
+  })
+  @ApiQuery({ name: 'zoneId', required: false, description: 'Фільтр за ігровою зоною' })
+  @ApiQuery({ name: 'type', required: false, enum: TariffType, description: 'Тип тарифу (HOURLY, PACKAGE_3_PLUS_1, CUSTOM)' })
+  @ApiResponse({ status: 200, description: 'Список тарифів отримано', type: [TariffResponseDto] })
+  async getTariffs(
+    @Query('zoneId') zoneId?: string,
+    @Query('type') type?: TariffType,
+  ) {
+    return this.tariffsService.findAll({ zoneId, type });
   }
 
   @Post('calculate')
-  @ApiOperation({ summary: 'Попередній розрахунок ціни сесії з промокодом' })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Попередній розрахунок ціни сесії з промокодом',
+    description: 'Розраховує підсумкову вартість з урахуванням обраного тарифу, тривалості гри та знижки за промокодом.',
+  })
+  @ApiResponse({ status: 200, description: 'Розрахунок вартості успішно виконано' })
   calculatePrice(@Body() dto: CalculatePriceDto) {
-    const basePrice = 100.0;
-    const discount = dto.promoCode ? 15.0 : 0.0;
-    return {
-      tariffId: dto.tariffId,
-      durationMinutes: dto.durationMinutes,
-      originalPrice: basePrice,
-      discountAmount: discount,
-      finalPrice: basePrice - discount,
-      promoApplied: !!dto.promoCode,
-    };
+    return this.tariffsService.calculatePrice(dto);
   }
 
   @Post('promotions/validate')
-  @ApiOperation({ summary: 'Перевірка промокоду на валідність' })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Перевірка промокоду на валідність',
+    description: 'Перевіряє, чи активний введений промокод (наприклад, "WELCOME" -15%).',
+  })
+  @ApiResponse({ status: 200, description: 'Результат перевірки промокоду' })
   validatePromo(@Body() dto: ValidatePromoDto) {
-    if (dto.code.toUpperCase() === 'WELCOME') {
-      return {
-        valid: true,
-        code: dto.code,
-        discountPercent: 15,
-        message: 'Промокод успішно застосовано (-15%)',
-      };
-    }
-    return {
-      valid: false,
-      code: dto.code,
-      message: 'Недійсний або прострочений промокод',
-    };
+    return this.tariffsService.validatePromo(dto);
+  }
+
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Детальна інформація про конкретний тариф',
+  })
+  @ApiParam({ name: 'id', description: 'UUID або ID тарифу' })
+  @ApiResponse({ status: 200, description: 'Інформація про тариф', type: TariffResponseDto })
+  @ApiResponse({ status: 404, description: 'Тариф не знайдено' })
+  async getTariffById(@Param('id') id: string) {
+    return this.tariffsService.findById(id);
+  }
+
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Створення нового тарифу клубу (лише ADMIN)',
+    description: 'Додає новий погодинний або пакетний тариф у гривнях із прив’язкою до зони.',
+  })
+  @ApiResponse({ status: 201, description: 'Тариф успішно створено', type: TariffResponseDto })
+  @ApiResponse({ status: 400, description: 'Некоректні вхідні дані' })
+  @ApiResponse({ status: 401, description: 'Відсутня авторизація' })
+  @ApiResponse({ status: 403, description: 'Недостатньо прав (потрібна роль ADMIN)' })
+  async createTariff(@Body() dto: CreateTariffDto) {
+    return this.tariffsService.create(dto);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Редагування тарифу (лише ADMIN)',
+    description: 'Оновлює назву, вартість, тривалість або прив’язану зону тарифу.',
+  })
+  @ApiParam({ name: 'id', description: 'UUID або ID тарифу' })
+  @ApiResponse({ status: 200, description: 'Тариф успішно оновлено', type: TariffResponseDto })
+  @ApiResponse({ status: 401, description: 'Відсутня авторизація' })
+  @ApiResponse({ status: 403, description: 'Недостатньо прав (потрібна роль ADMIN)' })
+  @ApiResponse({ status: 404, description: 'Тариф не знайдено' })
+  async updateTariff(@Param('id') id: string, @Body() dto: UpdateTariffDto) {
+    return this.tariffsService.update(id, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Видалення тарифу (лише ADMIN)',
+  })
+  @ApiParam({ name: 'id', description: 'UUID або ID тарифу' })
+  @ApiResponse({ status: 200, description: 'Тариф успішно видалено' })
+  @ApiResponse({ status: 401, description: 'Відсутня авторизація' })
+  @ApiResponse({ status: 403, description: 'Недостатньо прав (потрібна роль ADMIN)' })
+  @ApiResponse({ status: 404, description: 'Тариф не знайдено' })
+  async deleteTariff(@Param('id') id: string) {
+    return this.tariffsService.delete(id);
   }
 }
