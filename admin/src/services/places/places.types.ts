@@ -1,5 +1,7 @@
-//week 1: enum
-export type PlaceStatus = "FREE" | "BUSY" | "BOOKED" | "MAINTENANCE";
+import type { DeviceType } from "../zones/zones.types";
+
+//The backend sends and receives the location status using Ukrainian values ​​(an enum from Week 1)
+export type PlaceStatus = "вільно" | "зайнято" | "бронь" | "ремонт";
 
 export interface PlaceSpecs {
     cpu?: string;
@@ -14,8 +16,10 @@ export interface Place {
     name: string;
     zoneId: string;
     zoneName?: string;
+    zoneColor?: string;
+    deviceType?: DeviceType;
     status: PlaceStatus;
-    specs?: PlaceSpecs;
+    specs?: PlaceSpecs | null;
 }
 
 export interface PlacesFilter {
@@ -28,4 +32,9 @@ export interface CreatePlaceInput {
     name: string;
     zoneId: string;
     specs?: PlaceSpecs;
+}
+
+export interface SetPlaceStatusInput {
+    status: PlaceStatus;
+    description?: string;//For the "repair" status, the backend automatically creates an entry in the repair log with this description
 }

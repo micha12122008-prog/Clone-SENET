@@ -1,7 +1,6 @@
 import { useForm } from "react-hook-form";
 import { Button, Input, Modal, Select } from "../../ui";
 import { useCreateZone, useUpdateZone } from "../../hooks/zones/zones.hooks";
-import { BACKEND_ACCEPTS_DEVICE_TYPE } from "../../services/zones/zones.service";
 import type { DeviceType, Zone } from "../../services/zones/zones.types";
 import { ActionError } from "./SectionHeader";
 import { DEVICE_TYPES, errorText } from "./zones.labels";
@@ -12,11 +11,10 @@ interface ZoneFormValues {
     baseHourlyRate: number;
     colorHex: string;
     deviceType: DeviceType;
-    isActive: boolean;
 }
 
 interface ZoneFormModalProps {
-    /** null — створення нової зони. Модалку монтують лише відкритою, тож форма щоразу чиста. */
+    // null — Creating a new zone. The modal is mounted only in an open state, ensuring the form is clean every time
     zone: Zone | null;
     onClose: () => void;
 }
@@ -39,7 +37,6 @@ export function ZoneFormModal({ zone, onClose }: ZoneFormModalProps) {
             baseHourlyRate: zone?.baseHourlyRate ?? 50,
             colorHex: zone?.colorHex ?? "#3B82F6",
             deviceType: zone?.deviceType ?? "PC",
-            isActive: zone?.isActive ?? true,
         },
     });
 
@@ -50,9 +47,10 @@ export function ZoneFormModal({ zone, onClose }: ZoneFormModalProps) {
                     id: zone.id,
                     input: {
                         name: values.name.trim(),
+                        description: values.description.trim(),
                         baseHourlyRate: values.baseHourlyRate,
                         colorHex: values.colorHex,
-                        isActive: values.isActive,
+                        deviceType: values.deviceType,
                     },
                 });
             } else {
@@ -66,7 +64,7 @@ export function ZoneFormModal({ zone, onClose }: ZoneFormModalProps) {
             }
             onClose();
         } catch {
-            // помилку показує mutation.error
+            //setPlaceStatus.error shows an error
         }
     });
 
@@ -102,17 +100,15 @@ export function ZoneFormModal({ zone, onClose }: ZoneFormModalProps) {
                     {...register("name", { required: "Введіть назву" })}
                 />
 
-                {!zone && <Input label="Опис" {...register("description")} />}
+                <Input label="Опис" {...register("description")} />
 
-                {BACKEND_ACCEPTS_DEVICE_TYPE && !zone && (
-                    <Select label="Тип" {...register("deviceType")}>
-                        {DEVICE_TYPES.map((type) => (
-                            <option key={type} value={type}>
-                                {type}
-                            </option>
-                        ))}
-                    </Select>
-                )}
+                <Select label="Тип" {...register("deviceType")}>
+                    {DEVICE_TYPES.map((type) => (
+                        <option key={type} value={type}>
+                            {type}
+                        </option>
+                    ))}
+                </Select>
 
                 <Input
                     label="Тариф, грн за годину"
@@ -132,13 +128,6 @@ export function ZoneFormModal({ zone, onClose }: ZoneFormModalProps) {
                     className="p-1"
                     {...register("colorHex", { required: true })}
                 />
-
-                {zone && (
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                        <input type="checkbox" {...register("isActive")} />
-                        Зона активна
-                    </label>
-                )}
             </form>
         </Modal>
     );

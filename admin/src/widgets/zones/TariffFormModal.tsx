@@ -15,7 +15,7 @@ interface TariffFormValues {
 }
 
 interface TariffFormModalProps {
-    tariff: Tariff | null;//null — створення
+    tariff: Tariff | null;//null — creating
     zones: Zone[];
     onClose: () => void;
 }
@@ -47,14 +47,17 @@ export function TariffFormModal({ tariff, zones, onClose }: TariffFormModalProps
             type: values.type,
             price: values.price,
             durationMinutes: values.durationMinutes,
-            zoneId: values.zoneId || undefined,
         };
         try {
-            if (tariff) await update.mutateAsync({ id: tariff.id, input });
-            else await create.mutateAsync(input);
+            if (tariff) {
+                //null unbinds the tariff from the zone ("All zones")
+                await update.mutateAsync({ id: tariff.id, input: { ...input, zoneId: values.zoneId || null } });
+            } else {
+                await create.mutateAsync({ ...input, zoneId: values.zoneId || undefined });
+            }
             onClose();
         } catch {
-            // помилку показує mutation.error
+            //setPlaceStatus.error shows an error
         }
     });
 

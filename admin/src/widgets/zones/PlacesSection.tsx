@@ -25,7 +25,8 @@ export function PlacesSection() {
     const deletePlace = useDeletePlace();
 
     const zones = zonesQuery.data ?? [];
-    const deviceTypeOf = (place: Place) => zones.find((z) => z.id === place.zoneId)?.deviceType ?? "—";
+    const deviceTypeOf = (place: Place) =>
+        place.deviceType ?? zones.find((z) => z.id === place.zoneId)?.deviceType ?? "—";
 
     const handleDelete = (place: Place) => {
         if (!window.confirm(`Видалити місце «${place.name}»?`)) return;

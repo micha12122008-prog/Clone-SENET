@@ -1,15 +1,16 @@
-// DTO згідно CreateTariffDto(backend)
-export type TariffType = "HOURLY" | "PACKAGE" | "NIGHT" | "DAY" | "VIP";
+//Corresponds to enum TariffType schema.prisma(backend)
+export type TariffType = "HOURLY" | "PACKAGE_3_PLUS_1" | "CUSTOM";
 
 export interface Tariff {
     id: string;
     name: string;
+    description?: string | null;
     type: TariffType;
     price: number;
-    durationMinutes?: number;
-    zoneId?: string;
+    durationMinutes: number;
+    zoneId: string | null;
+    //The backend applies the "General Club Tariff" both for a tariff without a zone and when no zone is found
     zoneName?: string;
-    isActive?: boolean;
 }
 
 export interface CreateTariffInput {
@@ -18,6 +19,10 @@ export interface CreateTariffInput {
     price: number;
     durationMinutes?: number;
     zoneId?: string;
+    description?: string;
 }
 
-export type UpdateTariffInput = Partial<CreateTariffInput>;
+//Setting `zoneId` to `null` detaches the tariff from the zone (`UpdateTariffDto` accepts this).
+export type UpdateTariffInput = Partial<Omit<CreateTariffInput, "zoneId">> & {
+    zoneId?: string | null;
+};

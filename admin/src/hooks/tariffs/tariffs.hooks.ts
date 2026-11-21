@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TariffsService } from "../../services/tariffs/tariffs.service";
-import type { CreateTariffInput,  UpdateTariffInput } from "../../services/tariffs/tariffs.types";
+import type { CreateTariffInput, UpdateTariffInput } from "../../services/tariffs/tariffs.types";
 import { queryKeys } from "../queryKeys";
 
 export function useTariffs() {

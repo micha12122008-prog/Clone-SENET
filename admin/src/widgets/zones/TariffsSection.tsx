@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, QueryState, StatusBadge, Table, type Column } from "../../ui";
+import { Button, QueryState, Table, type Column } from "../../ui";
 import { useDeleteTariff, useTariffs } from "../../hooks/tariffs/tariffs.hooks";
 import { useZones } from "../../hooks/zones/zones.hooks";
 import type { Tariff } from "../../services/tariffs/tariffs.types";
@@ -11,7 +11,7 @@ export function TariffsSection() {
     const query = useTariffs();
     const zonesQuery = useZones();
     const deleteTariff = useDeleteTariff();
-    // undefined — модалка закрита, null — створення, Tariff — редагування
+    // undefined — the model is closed, null — creating, Tariff — editing
     const [formTarget, setFormTarget] = useState<Tariff | null | undefined>(undefined);
     const [actionError, setActionError] = useState<string | null>(null);
 
@@ -21,6 +21,20 @@ export function TariffsSection() {
         deleteTariff.mutate(tariff.id, { onError: (e) => setActionError(errorText(e)) });
     };
 
+    const zones = zonesQuery.data;
+    
+    const zoneLabel = (tariff: Tariff) => {
+        if (!tariff.zoneId) return "Усі зони";
+        if (!zones) return "…";
+        const zone = zones.find((z) => z.id === tariff.zoneId);
+        if (zone) return zone.name;
+        return (
+            <span className="text-amber-700" title={`Зони з id ${tariff.zoneId} немає у відповіді GET /zones`}>
+                Зону не знайдено
+            </span>
+        );
+    };
+
     const columns: Column<Tariff>[] = [
         { key: "name", header: "Назва", render: (tariff) => tariff.name },
         { key: "type", header: "Тип", render: (tariff) => TARIFF_TYPE_LABEL[tariff.type] ?? tariff.type },
@@ -28,18 +42,9 @@ export function TariffsSection() {
         {
             key: "duration",
             header: "Тривалість",
-            render: (tariff) => (tariff.durationMinutes ? `${tariff.durationMinutes} хв` : "—"),
+            render: (tariff) => `${tariff.durationMinutes} хв`,
         },
-        { key: "zone", header: "Зона", render: (tariff) => tariff.zoneName ?? "Усі" },
-        {
-            key: "active",
-            header: "Стан",
-            render: (tariff) => (
-                <StatusBadge tone={tariff.isActive === false ? "neutral" : "success"}>
-                    {tariff.isActive === false ? "Вимкнений" : "Активний"}
-                </StatusBadge>
-            ),
-        },
+        { key: "zone", header: "Зона", render: zoneLabel },
         {
             key: "actions",
             header: "",
@@ -91,7 +96,7 @@ export function TariffsSection() {
             {formTarget !== undefined && (
                 <TariffFormModal
                     tariff={formTarget}
-                    zones={zonesQuery.data ?? []}
+                    zones={zones ?? []}
                     onClose={() => setFormTarget(undefined)}
                 />
             )}

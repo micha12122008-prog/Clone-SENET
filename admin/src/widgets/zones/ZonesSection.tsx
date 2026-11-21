@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, QueryState, StatusBadge, Table, type Column } from "../../ui";
+import { Button, QueryState, Table, type Column } from "../../ui";
 import { useDeleteZone, useZones } from "../../hooks/zones/zones.hooks";
 import type { Zone } from "../../services/zones/zones.types";
 import { ZoneFormModal } from "./ZoneFormModal";
@@ -10,7 +10,7 @@ export function ZonesSection() {
     const query = useZones();
     const deleteZone = useDeleteZone();
     //
-    const [formTarget, setFormTarget] = useState<Zone | null | undefined>(undefined);// undefined — модалка закрита, null — створення, Zone — редагування
+    const [formTarget, setFormTarget] = useState<Zone | null | undefined>(undefined);// undefined — modal closed, null — creating, Zone — editing
     const [actionError, setActionError] = useState<string | null>(null);
 
     const handleDelete = (zone: Zone) => {
@@ -34,7 +34,7 @@ export function ZonesSection() {
                 </span>
             ),
         },
-        { key: "type", header: "Тип", render: (zone) => zone.deviceType ?? "—" },
+        { key: "type", header: "Тип", render: (zone) => zone.deviceType },
         { key: "rate", header: "Тариф", render: (zone) => `${formatUah(zone.baseHourlyRate)} / год` },
         {
             key: "places",
@@ -43,15 +43,6 @@ export function ZonesSection() {
                 zone.totalComputers === undefined
                     ? "—"
                     : `${zone.availableComputers ?? 0} з ${zone.totalComputers}`,
-        },
-        {
-            key: "active",
-            header: "Стан",
-            render: (zone) => (
-                <StatusBadge tone={zone.isActive ? "success" : "neutral"}>
-                    {zone.isActive ? "Активна" : "Вимкнена"}
-                </StatusBadge>
-            ),
         },
         {
             key: "actions",

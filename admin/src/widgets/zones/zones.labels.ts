@@ -5,29 +5,36 @@ import type { TariffType } from "../../services/tariffs/tariffs.types";
 import type { DeviceType } from "../../services/zones/zones.types";
 
 export const PLACE_STATUS_LABEL: Record<PlaceStatus, string> = {
-    FREE: "Вільно",
-    BUSY: "Зайнято",
-    BOOKED: "Бронь",
-    MAINTENANCE: "Ремонт",
+    вільно: "Вільно",
+    зайнято: "Зайнято",
+    бронь: "Бронь",
+    ремонт: "Ремонт",
 };
 
 export const PLACE_STATUS_TONE: Record<PlaceStatus, BadgeTone> = {
-    FREE: "success",
-    BUSY: "danger",
-    BOOKED: "warning",
-    MAINTENANCE: "neutral",
+    вільно: "success",
+    зайнято: "danger",
+    бронь: "warning",
+    ремонт: "neutral",
 };
 
 export const PLACE_STATUSES = Object.keys(PLACE_STATUS_LABEL) as PlaceStatus[];
+
+//Mirrors `validateStatusTransition` on the backend: from "repair," one can only transition to "available"; from "occupied," one cannot transition to "reserved."
+export const allowedPlaceStatuses = (current: PlaceStatus): PlaceStatus[] =>
+    PLACE_STATUSES.filter((next) => {
+        if (next === current) return true;
+        if (current === "ремонт") return next === "вільно";
+        if (current === "зайнято") return next !== "бронь";
+        return true;
+    });
 
 export const DEVICE_TYPES: DeviceType[] = ["PC", "PS", "VR"];
 
 export const TARIFF_TYPE_LABEL: Record<TariffType, string> = {
     HOURLY: "Погодинний",
-    PACKAGE: "Пакет",
-    NIGHT: "Ніч",
-    DAY: "День",
-    VIP: "VIP",
+    PACKAGE_3_PLUS_1: "Пакет 3+1",
+    CUSTOM: "Індивідуальний",
 };
 
 export const TARIFF_TYPES = Object.keys(TARIFF_TYPE_LABEL) as TariffType[];

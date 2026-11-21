@@ -5,7 +5,7 @@ import { useRepairLog } from "../../hooks/repairs/repairs.hooks";
 import type { Place, PlaceStatus } from "../../services/places/places.types";
 import type { RepairEntry } from "../../services/repairs/repairs.types";
 import { ActionError } from "./SectionHeader";
-import { PLACE_STATUSES, PLACE_STATUS_LABEL, errorText, formatDateTime } from "./zones.labels";
+import { PLACE_STATUS_LABEL, allowedPlaceStatuses, errorText, formatDateTime } from "./zones.labels";
 
 const FORM_ID = "place-status-form";
 
@@ -19,7 +19,7 @@ const logColumns: Column<RepairEntry>[] = [
     },
 ];
 
-/** Зміна статусу місця й журнал ремонту цього місця. */
+//Change of location status and repair log for this location
 export function PlaceStatusModal({ place, onClose }: { place: Place; onClose: () => void }) {
     const [status, setStatus] = useState<PlaceStatus>(place.status);
     const [note, setNote] = useState("");
@@ -28,7 +28,7 @@ export function PlaceStatusModal({ place, onClose }: { place: Place; onClose: ()
     const setPlaceStatus = useSetPlaceStatus();
     const repairLog = useRepairLog(place.id);
 
-    const needsNote = status === "MAINTENANCE" && place.status !== "MAINTENANCE";
+    const needsNote = status === "ремонт" && place.status !== "ремонт";
 
     const handleSubmit = async () => {
         if (needsNote && !note.trim()) {
@@ -43,7 +43,7 @@ export function PlaceStatusModal({ place, onClose }: { place: Place; onClose: ()
             });
             onClose();
         } catch {
-            // помилку показує setPlaceStatus.error
+            //setPlaceStatus.error shows an error
         }
     };
 
@@ -88,7 +88,7 @@ export function PlaceStatusModal({ place, onClose }: { place: Place; onClose: ()
                         value={status}
                         onChange={(e) => setStatus(e.target.value as PlaceStatus)}
                     >
-                        {PLACE_STATUSES.map((value) => (
+                        {allowedPlaceStatuses(place.status).map((value) => (
                             <option key={value} value={value}>
                                 {PLACE_STATUS_LABEL[value]}
                             </option>

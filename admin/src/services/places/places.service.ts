@@ -1,7 +1,12 @@
 import { placeStatusUrl, placeUrl, placesUrl } from "../../config/api.config";
 import { http } from "../api/http-client";
 import { unwrap, type Envelope } from "../api/envelope";
-import type { CreatePlaceInput, Place, PlaceStatus, PlacesFilter } from "./places.types";
+import type {
+    CreatePlaceInput,
+    Place,
+    PlacesFilter,
+    SetPlaceStatusInput,
+} from "./places.types";
 
 export const PlacesService = {
     async list(filter: PlacesFilter = {}): Promise<Place[]> {
@@ -16,8 +21,8 @@ export const PlacesService = {
         return unwrap(await http.post<Envelope<Place>>(placesUrl(), input));
     },
 
-    async setStatus(id: string, status: PlaceStatus): Promise<void> {
-        await http.patch(placeStatusUrl(id), { status });
+    async setStatus(id: string, input: SetPlaceStatusInput): Promise<Place> {
+        return unwrap(await http.patch<Envelope<Place>>(placeStatusUrl(id), input));
     },
 
     async remove(id: string): Promise<void> {
