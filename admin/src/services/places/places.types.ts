@@ -1,6 +1,6 @@
 import type { DeviceType } from "../zones/zones.types";
 
-//The backend sends and receives the location status using Ukrainian values ​​(an enum from Week 1)
+//The backend sends and receives the location status using Ukrainian values (an enum from Week 1)
 export type PlaceStatus = "вільно" | "зайнято" | "бронь" | "ремонт";
 
 export interface PlaceSpecs {
