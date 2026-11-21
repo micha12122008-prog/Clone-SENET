@@ -25,6 +25,7 @@ export const setUnauthorizedHandler = (handler: (() => void) | null) => {
     unauthorizedHandler = handler;
 };
 
+// Екземпляр Axios для виконання HTTP-запитів до Backend
 export const http = axios.create({
     baseURL: import.meta.env.VITE_API_URL,
     headers: { "Content-Type": "application/json" },
