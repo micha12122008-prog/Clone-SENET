@@ -21,18 +21,18 @@ function pickMessage(body: ErrorBody | undefined, fallback: string): string {
 
 let unauthorizedHandler: (() => void) | null = null;
 
-export const setUnauthorizedHandler = (handler: (() => void) | null) => {//хендлер, що виконуватиметься при отриманні 401
+export const setUnauthorizedHandler = (handler: (() => void) | null) => {
     unauthorizedHandler = handler;
 };
 
-//екземпляр Axios, для виконання HTTP-запитів до Backend
+// Екземпляр Axios для виконання HTTP-запитів до Backend
 export const http = axios.create({
     baseURL: import.meta.env.VITE_API_URL,
     headers: { "Content-Type": "application/json" },
     timeout: 15_000,
 });
 
-http.interceptors.request.use((config) => {//при наявності токена інтерсептор перехоплює запит до сервера та додає його
+http.interceptors.request.use((config) => {
     const token = tokenStorage.getAccess();
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -40,7 +40,7 @@ http.interceptors.request.use((config) => {//при наявності токе�
     return config;
 });
 
-http.interceptors.response.use(//повернення помилки запиту, приймає об'єкт відповіді та функцію помилки
+http.interceptors.response.use(
     (response) => response,
     (error: AxiosError<ErrorBody>) => {
         const status = error.response?.status ?? null;
