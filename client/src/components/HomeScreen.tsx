@@ -4,10 +4,12 @@ import {
   markAllNotificationsAsRead,
   markNotificationAsRead,
 } from '../api/clubClientApi'
+import { getAuthToken } from '../api/openapiClient'
 import { localizeDynamicText } from '../i18n/localizeDynamicText'
 import type { ShellLocale } from '../i18n/shellLabels'
 import type { AuthSession } from '../types/auth'
 import type { HomeDashboardData } from '../types/catalog'
+import { generateScannableQrMatrix } from '../utils/qrCodeGenerator'
 
 interface HomeScreenProps {
   locale?: ShellLocale
@@ -16,52 +18,6 @@ interface HomeScreenProps {
   onNavigateCabinet: () => void
   onNavigateLogin: () => void
   onNavigateRegister: () => void
-}
-
-function buildQrMatrix(seedText: string): boolean[][] {
-  const size = 21
-  const grid: boolean[][] = Array.from({ length: size }, () =>
-    Array.from({ length: size }, () => false),
-  )
-
-  const drawFinder = (r0: number, c0: number) => {
-    for (let r = 0; r < 7; r += 1) {
-      for (let c = 0; c < 7; c += 1) {
-        const isBorder = r === 0 || r === 6 || c === 0 || c === 6
-        const isInner = r >= 2 && r <= 4 && c >= 2 && c <= 4
-        grid[r0 + r][c0 + c] = isBorder || isInner
-      }
-    }
-  }
-
-  drawFinder(0, 0)
-  drawFinder(0, size - 7)
-  drawFinder(size - 7, 0)
-
-  let hash = 2166136261
-  for (let i = 0; i < seedText.length; i += 1) {
-    hash ^= seedText.charCodeAt(i)
-    hash = Math.imul(hash, 16777619)
-  }
-
-  for (let r = 0; r < size; r += 1) {
-    for (let c = 0; c < size; c += 1) {
-      const inTopLeft = r < 8 && c < 8
-      const inTopRight = r < 8 && c >= size - 8
-      const inBottomLeft = r >= size - 8 && c < 8
-      if (inTopLeft || inTopRight || inBottomLeft) {
-        continue
-      }
-      if (r === 6 || c === 6) {
-        grid[r][c] = (r + c) % 2 === 0
-        continue
-      }
-      const mix = Math.imul(hash ^ (r * 31 + c * 17), 2654435761) >>> 0
-      grid[r][c] = (mix & 3) === 0 || (mix & 5) === 1
-    }
-  }
-
-  return grid
 }
 
 const HOME_TEXT = {
@@ -257,11 +213,12 @@ export function HomeScreen({
 
   const qrToken = useMemo(() => {
     const cleanUser = currentUser.username || currentUser.firstName || 'player'
-    const cleanPhone = currentUser.phone || '+380993334455'
-    return `OBSIDIAN-QR:${currentUser.id}:${cleanUser}:${cleanPhone}`
-  }, [currentUser.firstName, currentUser.id, currentUser.phone, currentUser.username])
+    const rawToken = session?.accessToken ?? getAuthToken() ?? 'guest-session'
+    const tokenShort = rawToken.length > 24 ? rawToken.slice(-24) : rawToken
+    return `OBSIDIAN-QR:id=${currentUser.id}&user=${cleanUser}&token=${tokenShort}`
+  }, [currentUser.firstName, currentUser.id, currentUser.username, session?.accessToken])
 
-  const qrMatrix = useMemo(() => buildQrMatrix(qrToken), [qrToken])
+  const qrMatrix = useMemo(() => generateScannableQrMatrix(qrToken), [qrToken])
 
   const handleCopyQr = async () => {
     try {
@@ -573,10 +530,10 @@ export function HomeScreen({
             <div className="mt-5 flex flex-col items-center gap-4 sm:flex-row">
               <div
                 aria-label="User QR Code SVG"
-                className="shrink-0 rounded-2xl border-2 border-violet-500/40 bg-white p-3 shadow-lg"
+                className="shrink-0 rounded-2xl border-2 border-violet-500/40 bg-white p-3.5 shadow-lg"
               >
                 <svg
-                  viewBox="0 0 21 21"
+                  viewBox={`0 0 ${qrMatrix.length} ${qrMatrix.length}`}
                   className="h-36 w-36"
                   shapeRendering="crispEdges"
                   role="img"

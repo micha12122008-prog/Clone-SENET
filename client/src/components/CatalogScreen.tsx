@@ -7,6 +7,7 @@ import {
 import type { ShellLocale } from '../i18n/shellLabels'
 import type {
   CatalogSnapshotData,
+  CatalogZoneDto,
   DeviceCategory,
   ZoneCategoryKind,
 } from '../types/catalog'
@@ -35,10 +36,12 @@ const ALL_ZONE_CATEGORIES: Array<{
 const CATALOG_TEXT = {
   uk: {
     aria: 'Каталог ігрових зон та місць OBSIDIAN PC CLUB',
-    badge: 'Тиждень 3 • Каталог зон і місць (з API)',
+    badge: 'Тиждень 3 • Каталог зон і місць',
+    liveApiBadge: 'LIVE API • GET /api/zones + /api/computers',
+    fallbackBadge: 'FALLBACK • Локальний резерв',
     title: 'Каталог зон та ігрових місць',
     subtitle:
-      'Спочатку оберіть тип пристрою (PC / PS / VR), потім ігрову зону. Статуси місць зчитуються з API під час відкриття сторінки.',
+      'Спочатку оберіть тип пристрою (PC / PS / VR), потім ігрову зону. Статуси місць зчитуються з живого API під час відкриття сторінки.',
     backHomeBtn: '← На головну',
     refreshBtn: 'Оновити статуси з API',
     refreshingBtn: 'Завантаження з API...',
@@ -63,16 +66,19 @@ const CATALOG_TEXT = {
     specsRam: 'Пам’ять / Геймпади',
     specsDisplay: 'Екран / Оптика',
     placeNumberPrefix: 'Місце №',
-    noPlacesMatch: 'Немає місць із обраним статусом у цій зоні.',
+    noPlacesMatch:
+      'У цій зоні наразі немає місць з обраним статусом у базі API (адміністратор може додати їх у панелі керування).',
     staticNote:
-      'Статус місць зчитано з API в момент відкриття сторінки (без WebSocket — живе оновлення буде на тижні 5).',
+      'Статус місць зчитано з живого API (/api/zones та /api/computers) в момент відкриття сторінки (без WebSocket — живе оновлення буде на тижні 5).',
   },
   en: {
     aria: 'OBSIDIAN PC CLUB Zones & Seats Catalog',
-    badge: 'Week 3 • Zones & Seats Catalog (from API)',
+    badge: 'Week 3 • Zones & Seats Catalog',
+    liveApiBadge: 'LIVE API • GET /api/zones + /api/computers',
+    fallbackBadge: 'FALLBACK • Local Stub',
     title: 'Gaming Zones & Seats Catalog',
     subtitle:
-      'First select device type (PC / PS / VR), then choose a zone. Seat statuses are fetched from the API when opening the page.',
+      'First select device type (PC / PS / VR), then choose a zone. Seat statuses are fetched from the live API when opening the page.',
     backHomeBtn: '← Back to Home',
     refreshBtn: 'Refresh Statuses from API',
     refreshingBtn: 'Loading from API...',
@@ -97,36 +103,115 @@ const CATALOG_TEXT = {
     specsRam: 'Memory / Controllers',
     specsDisplay: 'Display / Optics',
     placeNumberPrefix: 'Seat #',
-    noPlacesMatch: 'No seats match the selected status filter in this zone.',
+    noPlacesMatch:
+      'No seats with the selected status in this zone in the live API yet (the admin can add them in the Admin panel).',
     staticNote:
-      'Seat statuses are read from the API upon opening the page (no WebSocket in Week 3 — live occupancy arrives in Week 5).',
+      'Seat statuses are read from the live API (/api/zones & /api/computers) upon opening the page (no WebSocket in Week 3 — live occupancy arrives in Week 5).',
   },
 } as const
 
-function getStatusBadgeClasses(status: PlaceStatus): string {
-  switch (status) {
-    case 'вільно':
-      return 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
-    case 'зайнято':
-      return 'border-rose-500/40 bg-rose-500/15 text-rose-300'
-    case 'бронь':
-      return 'border-amber-500/40 bg-amber-500/15 text-amber-300'
-    case 'ремонт':
-      return 'border-zinc-500/40 bg-zinc-700/40 text-zinc-300'
-  }
+const STATUS_BADGE_CLASSES: Record<PlaceStatus, string> = {
+  вільно: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300',
+  зайнято: 'border-rose-500/40 bg-rose-500/15 text-rose-300',
+  бронь: 'border-amber-500/40 bg-amber-500/15 text-amber-300',
+  ремонт: 'border-zinc-500/40 bg-zinc-700/40 text-zinc-300',
 }
 
-function getStatusDotClasses(status: PlaceStatus): string {
-  switch (status) {
-    case 'вільно':
-      return 'bg-emerald-400'
-    case 'зайнято':
-      return 'bg-rose-400'
-    case 'бронь':
-      return 'bg-amber-400'
-    case 'ремонт':
-      return 'bg-zinc-400'
-  }
+const STATUS_DOT_CLASSES: Record<PlaceStatus, string> = {
+  вільно: 'bg-emerald-400',
+  зайнято: 'bg-rose-400',
+  бронь: 'bg-amber-400',
+  ремонт: 'bg-zinc-400',
+}
+
+const DEFAULT_CATEGORY_BY_DEVICE: Record<DeviceCategory, ZoneCategoryKind> = {
+  PC: 'Standard',
+  PS: 'PS-зона',
+  VR: 'VR-room',
+}
+
+const EMPTY_CATEGORY_TEMPLATES: Record<ZoneCategoryKind, CatalogZoneDto> = {
+  Standard: {
+    id: 'virtual-standard',
+    name: 'Standard Zone',
+    categoryKind: 'Standard',
+    deviceType: 'PC',
+    description: 'Збалансовані ігрові ПК для рейтингового геймінгу в CS2, Dota 2, Valorant',
+    baseHourlyRate: 60,
+    colorHex: '#3B82F6',
+    hallPhotoLabel: 'Основний зал Standard Arena • Кіберспортивний простір',
+    hallPhotoCaption: 'GeForce RTX 4060 Ti • 24.5" ZOWIE 144Hz/240Hz • Механічні клавіатури',
+    totalPlaces: 0,
+    freePlaces: 0,
+    busyPlaces: 0,
+    bookedPlaces: 0,
+    maintenancePlaces: 0,
+  },
+  VIP: {
+    id: 'virtual-vip',
+    name: 'VIP OLED 240Hz',
+    categoryKind: 'VIP',
+    deviceType: 'PC',
+    description: 'Максимальна продуктивність RTX 4090, 240Hz OLED дисплеї та преміум-крісла',
+    baseHourlyRate: 110,
+    colorHex: '#8B5CF6',
+    hallPhotoLabel: 'Зал VIP OLED 240Hz • Шумоізольовані бокси',
+    hallPhotoCaption: 'GeForce RTX 4090 • 27" OLED 240Hz • Анатомічні крісла Secretlab',
+    totalPlaces: 0,
+    freePlaces: 0,
+    busyPlaces: 0,
+    bookedPlaces: 0,
+    maintenancePlaces: 0,
+  },
+  Bootcamp: {
+    id: 'virtual-bootcamp',
+    name: 'Bootcamp 5x5',
+    categoryKind: 'Bootcamp',
+    deviceType: 'PC',
+    description: 'Окрема командна кімната на 5 гравців для тренувань і турнірних праків',
+    baseHourlyRate: 75,
+    colorHex: '#10B981',
+    hallPhotoLabel: 'Зал Bootcamp 5×5 • Командна кімната',
+    hallPhotoCaption: '5 турнірних станцій у ряд • Тактична дошка • Ізольований голосовий зв’язок',
+    totalPlaces: 0,
+    freePlaces: 0,
+    busyPlaces: 0,
+    bookedPlaces: 0,
+    maintenancePlaces: 0,
+  },
+  'PS-зона': {
+    id: 'virtual-ps',
+    name: 'PlayStation 5 Lounge',
+    categoryKind: 'PS-зона',
+    deviceType: 'PS',
+    description: 'Консольна лаунж-зона з 4K TV 65", диванами та FIFA / UFC / Mortal Kombat',
+    baseHourlyRate: 80,
+    colorHex: '#F59E0B',
+    hallPhotoLabel: 'Зал PlayStation 5 Lounge • Консольна лаунж-зона',
+    hallPhotoCaption: 'Sony PS5 Pro • 65" 4K OLED TV • М’які дивани та 4 геймпади DualSense',
+    totalPlaces: 0,
+    freePlaces: 0,
+    busyPlaces: 0,
+    bookedPlaces: 0,
+    maintenancePlaces: 0,
+  },
+  'VR-room': {
+    id: 'virtual-vr',
+    name: 'VR Room Arena',
+    categoryKind: 'VR-room',
+    deviceType: 'VR',
+    description: 'Кімната віртуальної реальності з вільним переміщенням та шоломами Quest 3 / Index',
+    baseHourlyRate: 120,
+    colorHex: '#EC4899',
+    hallPhotoLabel: 'Зал VR-room Arena • Простір вільного руху 360°',
+    hallPhotoCaption:
+      'Meta Quest 3 / Valve Index • Кабель-менеджмент зі стелі • Кооперативні VR-ігри',
+    totalPlaces: 0,
+    freePlaces: 0,
+    busyPlaces: 0,
+    bookedPlaces: 0,
+    maintenancePlaces: 0,
+  },
 }
 
 export function CatalogScreen({ locale = 'uk', onBackToHome }: CatalogScreenProps) {
@@ -135,6 +220,7 @@ export function CatalogScreen({ locale = 'uk', onBackToHome }: CatalogScreenProp
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [selectedDevice, setSelectedDevice] = useState<DeviceCategory>('PC')
   const [selectedCategory, setSelectedCategory] = useState<ZoneCategoryKind>('Standard')
+  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<PlaceStatus | 'ALL'>('ALL')
 
   const loadCatalogFromApi = useCallback(async () => {
@@ -160,24 +246,20 @@ export function CatalogScreen({ locale = 'uk', onBackToHome }: CatalogScreenProp
   const handleSelectDevice = (device: DeviceCategory) => {
     setSelectedDevice(device)
     setStatusFilter('ALL')
-    if (device === 'PC') {
-      if (
-        selectedCategory !== 'Standard' &&
-        selectedCategory !== 'VIP' &&
-        selectedCategory !== 'Bootcamp'
-      ) {
-        setSelectedCategory('Standard')
-      }
-    } else if (device === 'PS') {
-      setSelectedCategory('PS-зона')
-    } else if (device === 'VR') {
-      setSelectedCategory('VR-room')
-    }
+    const matchingLiveZone = snapshot?.zones.find((z) => z.deviceType === device)
+    const defaultKind = matchingLiveZone?.categoryKind ?? DEFAULT_CATEGORY_BY_DEVICE[device]
+    setSelectedCategory(defaultKind)
+    setSelectedZoneId(matchingLiveZone?.id ?? null)
   }
 
-  const handleSelectCategory = (kind: ZoneCategoryKind, device: DeviceCategory) => {
+  const handleSelectCategory = (
+    kind: ZoneCategoryKind,
+    device: DeviceCategory,
+    zoneId?: string,
+  ) => {
     setSelectedDevice(device)
     setSelectedCategory(kind)
+    setSelectedZoneId(zoneId ?? null)
     setStatusFilter('ALL')
   }
 
@@ -201,23 +283,24 @@ export function CatalogScreen({ locale = 'uk', onBackToHome }: CatalogScreenProp
 
   const activeZone = useMemo(() => {
     if (!snapshot) return null
+    if (selectedZoneId) {
+      const byId = snapshot.zones.find((z) => z.id === selectedZoneId)
+      if (byId) return byId
+    }
     return (
       snapshot.zones.find((z) => z.categoryKind === selectedCategory) ??
-      snapshot.zones.find((z) => z.deviceType === selectedDevice) ??
-      snapshot.zones[0] ??
-      null
+      EMPTY_CATEGORY_TEMPLATES[selectedCategory]
     )
-  }, [selectedCategory, selectedDevice, snapshot])
+  }, [selectedCategory, selectedZoneId, snapshot])
 
   const zonePlaces = useMemo(() => {
     if (!snapshot || !activeZone) return []
     const allInZone = snapshot.places.filter(
       (p) => p.zoneId === activeZone.id || p.categoryKind === activeZone.categoryKind,
     )
-    if (statusFilter === 'ALL') {
-      return allInZone
-    }
-    return allInZone.filter((p) => p.status === statusFilter)
+    return statusFilter === 'ALL'
+      ? allInZone
+      : allInZone.filter((p) => p.status === statusFilter)
   }, [activeZone, snapshot, statusFilter])
 
   const activeCategoryLabel = useMemo(() => {
@@ -237,6 +320,17 @@ export function CatalogScreen({ locale = 'uk', onBackToHome }: CatalogScreenProp
               <span className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-xs font-semibold text-violet-300">
                 {t.badge}
               </span>
+              {snapshot && (
+                <span
+                  className={`rounded-lg border px-2.5 py-0.5 font-mono text-[11px] font-bold ${
+                    snapshot.source === 'live-api'
+                      ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                      : 'border-amber-500/40 bg-amber-500/15 text-amber-300'
+                  }`}
+                >
+                  {snapshot.source === 'live-api' ? t.liveApiBadge : t.fallbackBadge}
+                </span>
+              )}
               {snapshot && (
                 <span className="text-xs text-zinc-400">
                   {t.apiSnapshotAt}: <strong className="text-zinc-200">{snapshot.loadedAt}</strong>
@@ -308,15 +402,17 @@ export function CatalogScreen({ locale = 'uk', onBackToHome }: CatalogScreenProp
           </div>
           <div className="mt-2.5 flex flex-wrap gap-2.5">
             {ALL_ZONE_CATEGORIES.map((item) => {
-              const isSelected = selectedCategory === item.kind
-              const isSameDevice = item.device === selectedDevice
               const zoneObj = snapshot?.zones.find((z) => z.categoryKind === item.kind)
+              const isSelected =
+                selectedCategory === item.kind &&
+                (!selectedZoneId || selectedZoneId === zoneObj?.id)
+              const isSameDevice = item.device === selectedDevice
 
               return (
                 <button
                   key={item.kind}
                   type="button"
-                  onClick={() => handleSelectCategory(item.kind, item.device)}
+                  onClick={() => handleSelectCategory(item.kind, item.device, zoneObj?.id)}
                   className={`cursor-pointer rounded-xl border px-4 py-2.5 text-xs font-bold transition ${
                     isSelected
                       ? 'border-violet-500 bg-violet-600 text-white shadow-md shadow-violet-600/30'
@@ -327,11 +423,45 @@ export function CatalogScreen({ locale = 'uk', onBackToHome }: CatalogScreenProp
                 >
                   <span>{locale === 'uk' ? item.labelUk : item.labelEn}</span>
                   <span className="ml-2 rounded-md bg-black/30 px-1.5 py-0.5 font-mono text-[10px]">
-                    {item.device} • {zoneObj ? `${zoneObj.freePlaces}/${zoneObj.totalPlaces}` : '—'}
+                    {item.device} • {zoneObj ? `${zoneObj.freePlaces}/${zoneObj.totalPlaces}` : '0/0'}
                   </span>
                 </button>
               )
             })}
+
+            {/* Додаткові живі зони з API, якщо адмін створив власну зону */}
+            {snapshot?.zones
+              .filter(
+                (z) =>
+                  snapshot.zones.find((first) => first.categoryKind === z.categoryKind)?.id !==
+                  z.id,
+              )
+              .map((extraZone) => {
+                const isSelected = selectedZoneId === extraZone.id
+                return (
+                  <button
+                    key={extraZone.id}
+                    type="button"
+                    onClick={() =>
+                      handleSelectCategory(
+                        extraZone.categoryKind,
+                        extraZone.deviceType,
+                        extraZone.id,
+                      )
+                    }
+                    className={`cursor-pointer rounded-xl border px-4 py-2.5 text-xs font-bold transition ${
+                      isSelected
+                        ? 'border-violet-500 bg-violet-600 text-white shadow-md shadow-violet-600/30'
+                        : 'border-zinc-700 bg-zinc-950 text-zinc-200 hover:border-violet-500/50 hover:text-white'
+                    }`}
+                  >
+                    <span>{localizeDynamicText(extraZone.name, locale)}</span>
+                    <span className="ml-2 rounded-md bg-black/30 px-1.5 py-0.5 font-mono text-[10px]">
+                      {extraZone.deviceType} • {extraZone.freePlaces}/{extraZone.totalPlaces}
+                    </span>
+                  </button>
+                )
+              })}
           </div>
         </div>
       </div>
@@ -347,7 +477,10 @@ export function CatalogScreen({ locale = 'uk', onBackToHome }: CatalogScreenProp
               </span>
               <span
                 className="rounded-lg px-2.5 py-1 font-mono text-xs font-bold text-white"
-                style={{ backgroundColor: `${activeZone.colorHex}33`, border: `1px solid ${activeZone.colorHex}` }}
+                style={{
+                  backgroundColor: `${activeZone.colorHex}33`,
+                  border: `1px solid ${activeZone.colorHex}`,
+                }}
               >
                 {activeZone.deviceType} • {activeCategoryLabel}
               </span>
@@ -530,12 +663,10 @@ export function CatalogScreen({ locale = 'uk', onBackToHome }: CatalogScreenProp
                     </div>
 
                     <span
-                      className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1 text-xs font-bold ${getStatusBadgeClasses(
-                        place.status,
-                      )}`}
+                      className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1 text-xs font-bold ${STATUS_BADGE_CLASSES[place.status]}`}
                     >
                       <span
-                        className={`h-2 w-2 rounded-full ${getStatusDotClasses(place.status)}`}
+                        className={`h-2 w-2 rounded-full ${STATUS_DOT_CLASSES[place.status]}`}
                       />
                       {localizePlaceStatus(place.status, locale)}
                     </span>

@@ -29,16 +29,30 @@ const EXACT_PHRASE_EN: Record<string, string> = {
   'Ігрова зона': 'Gaming Zone',
   'PS-зона (PlayStation 5 Lounge)': 'PS-zone (PlayStation 5 Lounge)',
   'Збалансовані ПК для геймінгу': 'Balanced gaming PCs',
+  'Збалансовані ПК для геймінгу в CS2, Dota 2 та Valorant':
+    'Balanced gaming PCs for CS2, Dota 2 & Valorant',
   'Збалансовані ігрові ПК для рейтингового геймінгу в CS2, Dota 2, Valorant':
     'Balanced gaming PCs for ranked play in CS2, Dota 2, Valorant',
   'Максимальна продуктивність 240Hz': 'Maximum 240Hz performance',
+  'RTX 4090, 240Hz OLED дисплеї, анатомічні крісла, шумоізоляція':
+    'RTX 4090, 240Hz OLED displays, ergonomic chairs, soundproofing',
+  'RTX 4090, 240Hz OLED дисплеї, преміальні анатомічні крісла':
+    'RTX 4090, 240Hz OLED displays, premium ergonomic chairs',
   'Максимальна продуктивність RTX 4090, 240Hz OLED дисплеї та преміум-крісла':
     'Maximum RTX 4090 performance, 240Hz OLED displays & premium chairs',
   'Окрема кімната для команд': 'Private room for teams',
+  'Ізольована звукоізольована кімната для турнірних команд':
+    'Isolated soundproof room for tournament teams',
   'Окрема командна кімната на 5 гравців для тренувань і турнірних праків':
     'Private 5v5 team room for practice and tournament scrims',
+  'Sony PlayStation 5, 4K TV 65", дивани, DualSense геймпади, FIFA 24 / UFC':
+    'Sony PlayStation 5, 65" 4K TV, sofas, DualSense controllers, FIFA 24 / UFC',
+  'Консолі PS5, 4K OLED 65", дивани, DualSense геймпади, EA FC 24, UFC 5':
+    'PS5 consoles, 65" 4K OLED, sofas, DualSense controllers, EA FC 24, UFC 5',
   'Консольна лаунж-зона з 4K TV 65", диванами та FIFA / UFC / Mortal Kombat':
     'Console lounge zone with 65" 4K TV, sofas & FIFA / UFC / Mortal Kombat',
+  'VR-станція HTC Vive Focus / Meta Quest 3, трекінг рухів усього тіла':
+    'HTC Vive Focus / Meta Quest 3 VR station, full-body motion tracking',
   'Кімната віртуальної реальності з вільним переміщенням та шоломами Quest 3 / Index':
     'Room-scale virtual reality arena with Quest 3 / Valve Index headsets',
 
@@ -102,54 +116,50 @@ const EXACT_PHRASE_EN: Record<string, string> = {
     'You received 80 bonus points for your first visit.',
 }
 
+const PREFIX_PHRASE_EN: Array<{ ukPrefix: string; enPrefix: string }> = [
+  { ukPrefix: 'Гравець: ', enPrefix: 'Player: ' },
+  { ukPrefix: 'Сесія: ', enPrefix: 'Session: ' },
+]
+
 export function localizePlaceStatus(
   status: PlaceStatus,
   locale: ShellLocale,
 ): string {
-  if (locale === 'en') {
-    return PLACE_STATUS_EN[status] ?? status
-  }
-  return status
+  return locale === 'en' ? (PLACE_STATUS_EN[status] ?? status) : status
 }
 
 export function localizePaymentMethod(
   method: PaymentMethod,
   locale: ShellLocale,
 ): string {
-  if (locale === 'en') {
-    return PAYMENT_METHOD_EN[method] ?? method
-  }
-  return method
+  return locale === 'en' ? (PAYMENT_METHOD_EN[method] ?? method) : method
 }
 
 export function localizeTournamentStatus(
   status: TournamentStatus,
   locale: ShellLocale,
 ): string {
-  if (locale === 'en') {
-    return TOURNAMENT_STATUS_EN[status] ?? status
-  }
-  return status
+  return locale === 'en' ? (TOURNAMENT_STATUS_EN[status] ?? status) : status
 }
 
 export function localizeDynamicText(
   text: string | undefined,
   locale: ShellLocale,
 ): string {
-  if (!text) return ''
-  if (locale !== 'en') return text
+  if (!text || locale !== 'en') {
+    return text ?? ''
+  }
 
   const trimmed = text.trim()
-  if (EXACT_PHRASE_EN[trimmed]) {
-    return EXACT_PHRASE_EN[trimmed]
+  const exactMatch = EXACT_PHRASE_EN[trimmed]
+  if (exactMatch) {
+    return exactMatch
   }
 
-  if (trimmed.startsWith('Гравець: ')) {
-    return `Player: ${trimmed.slice('Гравець: '.length)}`
-  }
-  if (trimmed.startsWith('Сесія: ')) {
-    return `Session: ${trimmed.slice('Сесія: '.length)}`
-  }
-
-  return text
+  const prefixRule = PREFIX_PHRASE_EN.find((rule) =>
+    trimmed.startsWith(rule.ukPrefix),
+  )
+  return prefixRule
+    ? `${prefixRule.enPrefix}${trimmed.slice(prefixRule.ukPrefix.length)}`
+    : text
 }
