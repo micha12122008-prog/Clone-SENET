@@ -15,6 +15,7 @@ interface HomeScreenProps {
   locale?: ShellLocale
   session: AuthSession | null
   onNavigateCatalog: () => void
+  onNavigateBooking?: () => void
   onNavigateCabinet: () => void
   onNavigateLogin: () => void
   onNavigateRegister: () => void
@@ -171,6 +172,7 @@ export function HomeScreen({
   locale = 'uk',
   session,
   onNavigateCatalog,
+  onNavigateBooking,
   onNavigateCabinet,
   onNavigateLogin,
   onNavigateRegister,
@@ -500,11 +502,20 @@ export function HomeScreen({
             )}
           </div>
 
-          <div className="mt-5 border-t border-zinc-800 pt-4">
+          <div className="mt-5 flex flex-wrap gap-2.5 border-t border-zinc-800 pt-4">
+            {onNavigateBooking && (
+              <button
+                type="button"
+                onClick={onNavigateBooking}
+                className="flex-1 cursor-pointer rounded-xl bg-violet-600 px-4 py-3 text-xs font-bold text-white shadow-lg shadow-violet-600/20 transition hover:bg-violet-500"
+              >
+                {locale === 'en' ? 'Open Booking Wizard →' : 'Відкрити майстер бронювання →'}
+              </button>
+            )}
             <button
               type="button"
               onClick={onNavigateCatalog}
-              className="w-full cursor-pointer rounded-xl border border-violet-500/40 bg-violet-500/10 px-4 py-3 text-xs font-bold text-violet-300 transition hover:bg-violet-500/20"
+              className="flex-1 cursor-pointer rounded-xl border border-violet-500/40 bg-violet-500/10 px-4 py-3 text-xs font-bold text-violet-300 transition hover:bg-violet-500/20"
             >
               {t.openCatalogCta}
             </button>

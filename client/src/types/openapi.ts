@@ -1,8 +1,3 @@
-/**
- * Типи та фіксовані enum зі скелета OpenAPI (Тиждень 1).
- * Enum не перейменовуються протягом усього проєкту згідно з docs/тиждень-01.md.
- */
-
 export const PLACE_STATUSES = ['вільно', 'зайнято', 'бронь', 'ремонт'] as const
 export type PlaceStatus = (typeof PLACE_STATUSES)[number]
 

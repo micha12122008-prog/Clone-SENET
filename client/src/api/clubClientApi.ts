@@ -12,6 +12,7 @@ import type {
   ZoneCategoryKind,
 } from '../types/catalog'
 import type { PlaceStatus, PublicClubSettingsDto } from '../types/openapi'
+import { fetchClientBookings } from './bookingsApi'
 import { OPENAPI_FALLBACK_SETTINGS, requestOpenApi } from './openapiClient'
 
 function readString(value: unknown, fallback = ''): string {
@@ -438,6 +439,20 @@ export async function fetchCatalogSnapshot(): Promise<CatalogSnapshotData> {
 
 export async function fetchHomeDashboardData(): Promise<HomeDashboardData> {
   const loadedAt = new Date().toLocaleTimeString('uk-UA')
+  const storedBookings = await fetchClientBookings().catch(() => [])
+  const confirmedClientBookings: ActiveBookingDto[] = storedBookings
+    .filter((b) => b.status === 'CONFIRMED')
+    .map((b) => ({
+      id: b.id,
+      computerName: b.computerName,
+      zoneName: b.zoneName,
+      tariffName: b.tariffName,
+      startTime: b.startTime,
+      endTime: b.endTime,
+      prepaidAmount: b.isPaidOnline ? b.prepaidAmount : b.totalAmount,
+      status: b.status,
+      qrCode: b.qrCode,
+    }))
 
   try {
     const [settingsRes, sessionRes, bookingsRes, notificationsRes] = await Promise.all([
@@ -464,7 +479,7 @@ export async function fetchHomeDashboardData(): Promise<HomeDashboardData> {
           }
         : null
 
-    const activeBookings: ActiveBookingDto[] = Array.isArray(bookingsRes)
+    const apiBookings: ActiveBookingDto[] = Array.isArray(bookingsRes)
       ? bookingsRes.map((b, idx) => ({
           id: String(b.id ?? `book-${idx + 1}`),
           computerName: readString(b.computerName, 'PC-01'),
@@ -477,6 +492,13 @@ export async function fetchHomeDashboardData(): Promise<HomeDashboardData> {
           qrCode: readString(b.qrCode) || undefined,
         }))
       : []
+
+    const activeBookings: ActiveBookingDto[] = [
+      ...confirmedClientBookings,
+      ...apiBookings.filter(
+        (apiB) => !confirmedClientBookings.some((cb) => cb.id === apiB.id),
+      ),
+    ]
 
     const rawItems =
       notificationsRes && Array.isArray(notificationsRes.items)

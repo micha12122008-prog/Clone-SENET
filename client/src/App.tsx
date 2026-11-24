@@ -7,6 +7,7 @@ import {
   OPENAPI_FALLBACK_ZONES,
   fetchOpenApiSkeleton,
 } from './api/openapiClient'
+import { BookingWizardScreen } from './components/BookingWizardScreen'
 import { CatalogScreen } from './components/CatalogScreen'
 import { ClientCabinetView } from './components/ClientCabinetView'
 import { HomeScreen } from './components/HomeScreen'
@@ -25,6 +26,7 @@ import type { OpenApiSkeletonState } from './types/openapi'
 type ClientScreenView =
   | 'home'
   | 'catalog'
+  | 'booking'
   | 'splash'
   | 'onboarding'
   | 'login'
@@ -56,6 +58,8 @@ export function App() {
   const [pendingPassword, setPendingPassword] = useState<string | undefined>(undefined)
   const [loginIdentifier, setLoginIdentifier] = useState<string>('')
   const [loginNotice, setLoginNotice] = useState<string | null>(null)
+  const [bookingZoneId, setBookingZoneId] = useState<string | null>(null)
+  const [bookingPlaceId, setBookingPlaceId] = useState<string | null>(null)
 
   const loadSkeletonData = useCallback(async () => {
     setIsLoadingApi(true)
@@ -84,6 +88,12 @@ export function App() {
     setAuthSession(null)
     setLoginNotice(labels.logoutNotice)
     setActiveView('login')
+  }
+
+  const handleOpenBookingWizard = (zoneId?: string, placeId?: string) => {
+    setBookingZoneId(zoneId ?? null)
+    setBookingPlaceId(placeId ?? null)
+    setActiveView('booking')
   }
 
   return (
@@ -134,6 +144,18 @@ export function App() {
               }`}
             >
               {labels.navCatalog}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleOpenBookingWizard()}
+              className={`cursor-pointer rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                activeView === 'booking'
+                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/30'
+                  : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
+              }`}
+            >
+              {labels.navBooking}
             </button>
 
             <button
@@ -269,6 +291,7 @@ export function App() {
             locale={shellLocale}
             session={authSession}
             onNavigateCatalog={() => setActiveView('catalog')}
+            onNavigateBooking={() => handleOpenBookingWizard()}
             onNavigateCabinet={() => setActiveView('cabinet')}
             onNavigateLogin={() => setActiveView('login')}
             onNavigateRegister={() => setActiveView('register')}
@@ -279,6 +302,18 @@ export function App() {
           <CatalogScreen
             locale={shellLocale}
             onBackToHome={() => setActiveView('home')}
+            onBookPlace={(zoneId, placeId) => handleOpenBookingWizard(zoneId, placeId)}
+          />
+        )}
+
+        {activeView === 'booking' && (
+          <BookingWizardScreen
+            locale={shellLocale}
+            session={authSession}
+            initialZoneId={bookingZoneId}
+            initialPlaceId={bookingPlaceId}
+            onBackToHome={() => setActiveView('home')}
+            onOpenCatalog={() => setActiveView('catalog')}
           />
         )}
 

@@ -16,6 +16,7 @@ import { PLACE_STATUSES, type PlaceStatus } from '../types/openapi'
 interface CatalogScreenProps {
   locale?: ShellLocale
   onBackToHome: () => void
+  onBookPlace?: (zoneId: string, placeId?: string) => void
 }
 
 const DEVICE_TYPES: DeviceCategory[] = ['PC', 'PS', 'VR']
@@ -214,7 +215,11 @@ const EMPTY_CATEGORY_TEMPLATES: Record<ZoneCategoryKind, CatalogZoneDto> = {
   },
 }
 
-export function CatalogScreen({ locale = 'uk', onBackToHome }: CatalogScreenProps) {
+export function CatalogScreen({
+  locale = 'uk',
+  onBackToHome,
+  onBookPlace,
+}: CatalogScreenProps) {
   const t = CATALOG_TEXT[locale]
   const [snapshot, setSnapshot] = useState<CatalogSnapshotData | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
@@ -706,7 +711,15 @@ export function CatalogScreen({ locale = 'uk', onBackToHome }: CatalogScreenProp
                   <span className="font-mono text-sm font-extrabold text-emerald-400">
                     {place.hourlyRate} {t.perHourUnit}
                   </span>
-                  {place.note ? (
+                  {onBookPlace && place.status === 'вільно' ? (
+                    <button
+                      type="button"
+                      onClick={() => onBookPlace(place.zoneId, place.id)}
+                      className="cursor-pointer rounded-xl bg-violet-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-violet-500"
+                    >
+                      {locale === 'en' ? 'Book Seat →' : 'Забронювати →'}
+                    </button>
+                  ) : place.note ? (
                     <span className="truncate text-[11px] font-medium text-amber-300">
                       {localizeDynamicText(place.note, locale)}
                     </span>
