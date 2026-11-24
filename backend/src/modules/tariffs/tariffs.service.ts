@@ -115,40 +115,34 @@ export class TariffsService {
 
   async findAll(query?: { zoneId?: string; type?: TariffType }) {
     if (this.prisma.isConnected) {
-      try {
-        const where: any = {};
-        if (query?.zoneId) {
-          where.zoneId = query.zoneId;
-        }
-        if (query?.type) {
-          where.type = query.type;
-        }
-
-        const tariffs = await this.prisma.tariff.findMany({
-          where,
-          include: {
-            zone: true,
-          },
-          orderBy: { price: 'asc' },
-        });
-
-        if (tariffs && tariffs.length > 0) {
-          return tariffs.map((t) => ({
-            id: t.id,
-            name: t.name,
-            description: t.description,
-            type: t.type,
-            price: Number(t.price),
-            durationMinutes: t.durationMinutes,
-            zoneId: t.zoneId,
-            zoneName: t.zone?.name || 'Загальний тариф клубу',
-            createdAt: t.createdAt,
-            updatedAt: t.updatedAt,
-          }));
-        }
-      } catch (err) {
-        this.logger.warn(`Prisma findAll tariffs fallback to memory: ${err.message}`);
+      const where: any = {};
+      if (query?.zoneId) {
+        where.zoneId = query.zoneId;
       }
+      if (query?.type) {
+        where.type = query.type;
+      }
+
+      const tariffs = await this.prisma.tariff.findMany({
+        where,
+        include: {
+          zone: true,
+        },
+        orderBy: { price: 'asc' },
+      });
+
+      return tariffs.map((t) => ({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        type: t.type,
+        price: Number(t.price),
+        durationMinutes: t.durationMinutes,
+        zoneId: t.zoneId,
+        zoneName: t.zone?.name || 'Загальний тариф клубу',
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+      }));
     }
 
     let items = Array.from(this.memoryTariffs.values());
@@ -183,28 +177,25 @@ export class TariffsService {
 
   async findById(id: string) {
     if (this.prisma.isConnected) {
-      try {
-        const tariff = await this.prisma.tariff.findUnique({
-          where: { id },
-          include: { zone: true },
-        });
-        if (tariff) {
-          return {
-            id: tariff.id,
-            name: tariff.name,
-            description: tariff.description,
-            type: tariff.type,
-            price: Number(tariff.price),
-            durationMinutes: tariff.durationMinutes,
-            zoneId: tariff.zoneId,
-            zoneName: tariff.zone?.name || 'Загальний тариф клубу',
-            createdAt: tariff.createdAt,
-            updatedAt: tariff.updatedAt,
-          };
-        }
-      } catch (err) {
-        this.logger.warn(`Prisma findById tariff fallback to memory: ${err.message}`);
+      const tariff = await this.prisma.tariff.findUnique({
+        where: { id },
+        include: { zone: true },
+      });
+      if (!tariff) {
+        throw new NotFoundException(`Тариф із ID "${id}" не знайдено`);
       }
+      return {
+        id: tariff.id,
+        name: tariff.name,
+        description: tariff.description,
+        type: tariff.type,
+        price: Number(tariff.price),
+        durationMinutes: tariff.durationMinutes,
+        zoneId: tariff.zoneId,
+        zoneName: tariff.zone?.name || 'Загальний тариф клубу',
+        createdAt: tariff.createdAt,
+        updatedAt: tariff.updatedAt,
+      };
     }
 
     const tariff = this.memoryTariffs.get(id);
@@ -246,30 +237,22 @@ export class TariffsService {
     };
 
     if (this.prisma.isConnected) {
-      try {
-        const created = await this.prisma.tariff.create({
-          data: tariffData,
-          include: { zone: true },
-        });
-        const mapped: InternalTariff = {
-          id: created.id,
-          name: created.name,
-          description: created.description,
-          type: created.type,
-          price: Number(created.price),
-          durationMinutes: created.durationMinutes,
-          zoneId: created.zoneId,
-          createdAt: created.createdAt,
-          updatedAt: created.updatedAt,
-        };
-        this.memoryTariffs.set(mapped.id, mapped);
-        return {
-          ...mapped,
-          zoneName: created.zone?.name || 'Загальний тариф клубу',
-        };
-      } catch (err) {
-        this.logger.warn(`Prisma create tariff fallback to memory: ${err.message}`);
-      }
+      const created = await this.prisma.tariff.create({
+        data: tariffData,
+        include: { zone: true },
+      });
+      return {
+        id: created.id,
+        name: created.name,
+        description: created.description,
+        type: created.type,
+        price: Number(created.price),
+        durationMinutes: created.durationMinutes,
+        zoneId: created.zoneId,
+        createdAt: created.createdAt,
+        updatedAt: created.updatedAt,
+        zoneName: created.zone?.name || 'Загальний тариф клубу',
+      };
     }
 
     const newTariff: InternalTariff = {
@@ -306,31 +289,23 @@ export class TariffsService {
     if (dto.zoneId !== undefined) updateData.zoneId = dto.zoneId;
 
     if (this.prisma.isConnected) {
-      try {
-        const updated = await this.prisma.tariff.update({
-          where: { id },
-          data: updateData,
-          include: { zone: true },
-        });
-        const mapped: InternalTariff = {
-          id: updated.id,
-          name: updated.name,
-          description: updated.description,
-          type: updated.type,
-          price: Number(updated.price),
-          durationMinutes: updated.durationMinutes,
-          zoneId: updated.zoneId,
-          createdAt: updated.createdAt,
-          updatedAt: updated.updatedAt,
-        };
-        this.memoryTariffs.set(id, mapped);
-        return {
-          ...mapped,
-          zoneName: updated.zone?.name || 'Загальний тариф клубу',
-        };
-      } catch (err) {
-        this.logger.warn(`Prisma update tariff fallback to memory: ${err.message}`);
-      }
+      const updated = await this.prisma.tariff.update({
+        where: { id },
+        data: updateData,
+        include: { zone: true },
+      });
+      return {
+        id: updated.id,
+        name: updated.name,
+        description: updated.description,
+        type: updated.type,
+        price: Number(updated.price),
+        durationMinutes: updated.durationMinutes,
+        zoneId: updated.zoneId,
+        createdAt: updated.createdAt,
+        updatedAt: updated.updatedAt,
+        zoneName: updated.zone?.name || 'Загальний тариф клубу',
+      };
     }
 
     const memTariff = this.memoryTariffs.get(id);
@@ -353,15 +328,10 @@ export class TariffsService {
     await this.findById(id);
 
     if (this.prisma.isConnected) {
-      try {
-        await this.prisma.tariff.delete({
-          where: { id },
-        });
-        this.memoryTariffs.delete(id);
-        return { message: `Тариф із ID "${id}" успішно видалено` };
-      } catch (err) {
-        this.logger.warn(`Prisma delete tariff fallback to memory: ${err.message}`);
-      }
+      await this.prisma.tariff.delete({
+        where: { id },
+      });
+      return { message: `Тариф із ID "${id}" успішно видалено` };
     }
 
     this.memoryTariffs.delete(id);

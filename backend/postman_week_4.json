@@ -1,0 +1,502 @@
+{
+  "info": {
+    "name": "Week 4 - Bookings API (Obsidian PC CLUB)",
+    "description": "Повна Postman-колекція API Бронювання для Тижня 4 дипломного проєкту «Clone-SENET». Включає: тривалість 1/2/3 години, пакет 3+1, допи (напої, снеки, геймпад, VR), захист від double-booking, утримання на 10 хвилин (hold TTL), правило 2 годин для скасування/перенесення, чек-ін без старту сесії та пошук сусідніх місць для команд.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "testBookingId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "testHoldBookingId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "testQrCode",
+      "value": "QR_BOOK_OBSIDIAN_VIP_01_TEST",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Авторизація (Токени)",
+      "item": [
+        {
+          "name": "POST Вхід ADMIN (Отримати токен)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.accessToken) {",
+                  "    pm.collectionVariables.set('adminToken', json.data.accessToken);",
+                  "    console.log('Admin token saved');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"admin@obsidianclub.ua\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Авторизація адміністратора клубу. Автоматично записує accessToken у змінну adminToken."
+          }
+        },
+        {
+          "name": "POST Вхід CLIENT (Отримати токен гравця)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.accessToken) {",
+                  "    pm.collectionVariables.set('clientToken', json.data.accessToken);",
+                  "    console.log('Client token saved');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"player1@gmail.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Авторизація клієнта (s1mple_pro). Автоматично зберігає clientToken."
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Додаткові послуги (Booking Extras)",
+      "item": [
+        {
+          "name": "GET Каталог додаткових послуг",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/bookings/extras-catalog",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "extras-catalog"]
+            },
+            "description": "Повертає довідник додаткових опцій: напої (Red Bull, Cola, Monster), снеки (сендвіч, чіпси), геймпад DualSense, послуги VR-оператора."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Створення бронювань (Bookings Creation)",
+      "item": [
+        {
+          "name": "POST Створити звичайну бронь на 2 години з допами",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "    pm.collectionVariables.set('testBookingId', json.data.id);",
+                  "    pm.collectionVariables.set('testQrCode', json.data.qrCode);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placeId\": \"comp-1\",\n  \"tariffId\": \"tariff-1\",\n  \"startTime\": \"2026-11-26T18:00:00.000Z\",\n  \"durationHours\": 2,\n  \"isPackage3Plus1\": false,\n  \"isPaidOnline\": true,\n  \"extras\": [\n    {\n      \"name\": \"Red Bull Energy Drink 0.25л\",\n      \"price\": 65.0,\n      \"quantity\": 2\n    },\n    {\n      \"name\": \"Клаб-сендвіч із куркою та сиром чеддер\",\n      \"price\": 120.0,\n      \"quantity\": 1\n    }\n  ],\n  \"notes\": \"Матч у CS2 прем'єр\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings"]
+            },
+            "description": "Бронювання на 2 години за тарифом 60 грн/год + 2x65 грн Red Bull + 120 грн сендвіч = 370 грн."
+          }
+        },
+        {
+          "name": "POST Створити бронь за пакетом «3+1» (4 год за ціною 3)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placeId\": \"comp-2\",\n  \"tariffId\": \"tariff-1\",\n  \"startTime\": \"2026-11-26T14:00:00.000Z\",\n  \"isPackage3Plus1\": true,\n  \"isPaidOnline\": false,\n  \"notes\": \"Пакет 3+1 (оплата на місці)\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings"]
+            },
+            "description": "Пакет 3+1: місце займається рівно на 4 години (14:00-18:00), до сплати 3 години (180 грн), без окремого гаманця годин."
+          }
+        },
+        {
+          "name": "POST Створити утримання місця на 10 хвилин (isHold: true)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "    pm.collectionVariables.set('testHoldBookingId', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placeId\": \"comp-5\",\n  \"tariffId\": \"tariff-1\",\n  \"startTime\": \"2026-11-26T20:00:00.000Z\",\n  \"durationHours\": 1,\n  \"isHold\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings"]
+            },
+            "description": "Створює бронь у статусі HOLD з holdExpiresAt = now + 10 хв. Транзакція фінішується миттєво."
+          }
+        },
+        {
+          "name": "POST Підтвердити утримане місце (Hold -> Confirmed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isPaidOnline\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{testHoldBookingId}}/confirm",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "{{testHoldBookingId}}", "confirm"]
+            },
+            "description": "Знімає таймер утримання 10 хвилин (holdExpiresAt стає null) та переводить бронь у статус CONFIRMED."
+          }
+        },
+        {
+          "name": "POST Перевірка захисту від подвійного бронювання (409 Conflict)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placeId\": \"comp-1\",\n  \"tariffId\": \"tariff-1\",\n  \"startTime\": \"2026-11-26T18:30:00.000Z\",\n  \"durationHours\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings"]
+            },
+            "description": "Спроба забронювати comp-1 на 18:30 (перетин із першою бронею 18:00-20:00). Повертає 409 Conflict через PostgreSQL-транзакцію."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Правило 2 годин (Скасування та перенесення)",
+      "item": [
+        {
+          "name": "POST Створити термінову бронь через 1 годину (для перевірки правила)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const soon = new Date(Date.now() + 3600 * 1000 * 1).toISOString();",
+                  "pm.variables.set('soonTime', soon);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "    pm.collectionVariables.set('urgentBookingId', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placeId\": \"comp-6\",\n  \"tariffId\": \"tariff-1\",\n  \"startTime\": \"{{soonTime}}\",\n  \"durationHours\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings"]
+            },
+            "description": "Створює бронь, до початку якої залишилася лише 1 година (< 2 годин)."
+          }
+        },
+        {
+          "name": "POST Скасування заблоковано: менше 2 годин до старту (400 Bad Request)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Термінові справи\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{urgentBookingId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "{{urgentBookingId}}", "cancel"]
+            },
+            "description": "Повертає 400 Bad Request: 'Правило 2 годин: скасування бронювання відхилено'."
+          }
+        },
+        {
+          "name": "POST Перенесення заблоковано: менше 2 годин до старту (400 Bad Request)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newStartTime\": \"2026-11-28T18:00:00.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{urgentBookingId}}/reschedule",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "{{urgentBookingId}}", "reschedule"]
+            },
+            "description": "Повертає 400 Bad Request: 'Правило 2 годин: перенесення бронювання відхилено'."
+          }
+        },
+        {
+          "name": "POST Успішне перенесення: до старту більше 2 годин (200 OK)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newStartTime\": \"2026-11-27T19:00:00.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{testBookingId}}/reschedule",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "{{testBookingId}}", "reschedule"]
+            },
+            "description": "Успішно переносить час броні testBookingId, оскільки до старту більше 2 годин."
+          }
+        },
+        {
+          "name": "POST Успішне скасування: до старту більше 2 годин (200 OK)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Зміна планів команди\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{testBookingId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "{{testBookingId}}", "cancel"]
+            },
+            "description": "Успішно скасовує бронь та повертає суму коштів."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Чек-ін (Check-In Lookup)",
+      "item": [
+        {
+          "name": "GET Чек-ін за QR-кодом / токеном",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/bookings/check-in?token={{testQrCode}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "check-in"],
+              "query": [
+                { "key": "token", "value": "{{testQrCode}}" }
+              ]
+            },
+            "description": "Повертає картку клієнта: ПІБ, телефон, ПК, зона, час, статус оплати. УВАГА: Сесію цей запит НЕ стартує (sessionStarted: false)."
+          }
+        },
+        {
+          "name": "GET Чек-ін за номером телефону",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/bookings/check-in?phone=%2B380993334455",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "check-in"],
+              "query": [
+                { "key": "phone", "value": "+380993334455" }
+              ]
+            },
+            "description": "Пошук картки броні за номером телефону клієнта."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Сусідні місця для команд (Adjacent Seats)",
+      "item": [
+        {
+          "name": "GET Пошук 2 сусідніх ПК у зоні Standard",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/bookings/adjacent-seats?zoneId=zone-1-standard&seatsCount=2&startTime=2026-11-28T18:00:00.000Z&durationHours=2",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "adjacent-seats"],
+              "query": [
+                { "key": "zoneId", "value": "zone-1-standard" },
+                { "key": "seatsCount", "value": "2" },
+                { "key": "startTime", "value": "2026-11-28T18:00:00.000Z" },
+                { "key": "durationHours", "value": "2" }
+              ]
+            },
+            "description": "Повертає ланцюжки суміжних комп'ютерів в одному ряду обраної зони для командної гри."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Календар та перегляд бронювань",
+      "item": [
+        {
+          "name": "GET Матриця завантаженості ПК (Timeline / Gantt)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/bookings/calendar?date=2026-11-26",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "calendar"],
+              "query": [
+                { "key": "date", "value": "2026-11-26" }
+              ]
+            },
+            "description": "Повертає список усіх комп'ютерів клубу та їхні часові слоти бронювань на вказану дату."
+          }
+        },
+        {
+          "name": "GET Список моїх бронювань (Клієнт)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{clientToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/my",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "my"]
+            },
+            "description": "Список усіх бронювань поточного авторизованого користувача для клієнтського майстра/кабінету."
+          }
+        },
+        {
+          "name": "GET Реєстр усіх бронювань клубу (Адмін)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings"]
+            },
+            "description": "Загальний список бронювань клубу з підтримкою фільтрів за датою, статусом, зоною та ПК."
+          }
+        }
+      ]
+    }
+  ]
+}
