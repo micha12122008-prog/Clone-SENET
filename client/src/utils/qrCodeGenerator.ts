@@ -1,8 +1,3 @@
-/**
- * Генератор справжнього QR-коду за стандартом ISO/IEC 18004 (Byte Mode, ECC Level L, Mask 0, версії 1–5).
- * Кодує ID користувача, нікнейм та активний токен сесії так, щоб QR-код сканувався камерою смартфона.
- */
-
 interface QrVersionSpec {
   version: number
   size: number

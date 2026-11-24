@@ -14,6 +14,7 @@ export interface ClientTranslations {
   appBadge: string
   navHome: string
   navCatalog: string
+  navBooking: string
   navSplash: string
   navOnboarding: string
   navLogin: string
@@ -205,6 +206,7 @@ export const SHELL_LABELS: Record<ShellLocale, ClientTranslations> = {
     appBadge: 'Клієнтська оболонка',
     navHome: 'Головна',
     navCatalog: 'Каталог зон',
+    navBooking: 'Бронювання',
     navSplash: 'Заставка',
     navOnboarding: 'Онбординг',
     navLogin: 'Вхід',
@@ -220,7 +222,7 @@ export const SHELL_LABELS: Record<ShellLocale, ClientTranslations> = {
     freePlacesLabel: 'Вільні ПК',
     refreshApiButton: 'Оновити API',
     footerShellNote: 'OBSIDIAN PC CLUB • Клієнтський веб-додаток',
-    weekBadge: 'Тиждень 3 • Головна і каталог зон',
+    weekBadge: 'Тиждень 4 • Майстер бронювання',
     logoutNotice: 'Ви успішно вийшли з облікового запису.',
 
     splashAria: 'Заставка OBSIDIAN PC CLUB',
@@ -432,6 +434,7 @@ export const SHELL_LABELS: Record<ShellLocale, ClientTranslations> = {
     appBadge: 'Client Shell',
     navHome: 'Home',
     navCatalog: 'Zones Catalog',
+    navBooking: 'Booking Wizard',
     navSplash: 'Splash',
     navOnboarding: 'Onboarding',
     navLogin: 'Sign In',
@@ -447,7 +450,7 @@ export const SHELL_LABELS: Record<ShellLocale, ClientTranslations> = {
     freePlacesLabel: 'Free PCs',
     refreshApiButton: 'Refresh API',
     footerShellNote: 'OBSIDIAN PC CLUB • Client Web Application',
-    weekBadge: 'Week 3 • Home & Zones Catalog',
+    weekBadge: 'Week 4 • Booking Wizard',
     logoutNotice: 'You have successfully signed out.',
 
     splashAria: 'OBSIDIAN PC CLUB Splash Screen',
