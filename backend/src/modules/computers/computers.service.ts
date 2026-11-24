@@ -230,32 +230,26 @@ export class ComputersService {
 
   async findAll(query?: { zoneId?: string; status?: string; deviceType?: DeviceType }) {
     if (this.prisma.isConnected) {
-      try {
-        const where: any = {};
-        if (query?.zoneId) {
-          where.zoneId = query.zoneId;
-        }
-        if (query?.status) {
-          where.status = normalizeToPrismaStatus(query.status);
-        }
-        if (query?.deviceType) {
-          where.zone = { deviceType: query.deviceType };
-        }
-
-        const places = await this.prisma.place.findMany({
-          where,
-          include: {
-            zone: true,
-          },
-          orderBy: { number: 'asc' },
-        });
-
-        if (places && places.length > 0) {
-          return places.map((p) => this.mapPlaceToResponse(p, p.zone));
-        }
-      } catch (err) {
-        this.logger.warn(`Prisma findAll places fallback to memory: ${err.message}`);
+      const where: any = {};
+      if (query?.zoneId) {
+        where.zoneId = query.zoneId;
       }
+      if (query?.status) {
+        where.status = normalizeToPrismaStatus(query.status);
+      }
+      if (query?.deviceType) {
+        where.zone = { deviceType: query.deviceType };
+      }
+
+      const places = await this.prisma.place.findMany({
+        where,
+        include: {
+          zone: true,
+        },
+        orderBy: { number: 'asc' },
+      });
+
+      return places.map((p) => this.mapPlaceToResponse(p, p.zone));
     }
 
     let items = Array.from(this.memoryPlaces.values());
@@ -327,33 +321,30 @@ export class ComputersService {
 
   async findById(id: string) {
     if (this.prisma.isConnected) {
-      try {
-        const place = await this.prisma.place.findUnique({
-          where: { id },
-          include: {
-            zone: true,
-            repairs: {
-              orderBy: { createdAt: 'desc' },
-              take: 5,
-            },
+      const place = await this.prisma.place.findUnique({
+        where: { id },
+        include: {
+          zone: true,
+          repairs: {
+            orderBy: { createdAt: 'desc' },
+            take: 5,
           },
-        });
-        if (place) {
-          const res = this.mapPlaceToResponse(place, place.zone);
-          return {
-            ...res,
-            repairs: place.repairs.map((r) => ({
-              id: r.id,
-              description: r.description,
-              startedAt: r.startedAt,
-              finishedAt: r.finishedAt,
-              status: r.finishedAt ? 'Завершено' : 'В процесі',
-            })),
-          };
-        }
-      } catch (err) {
-        this.logger.warn(`Prisma findById place fallback to memory: ${err.message}`);
+        },
+      });
+      if (!place) {
+        throw new NotFoundException(`Місце / комп’ютер із ID "${id}" не знайдено`);
       }
+      const res = this.mapPlaceToResponse(place, place.zone);
+      return {
+        ...res,
+        repairs: place.repairs.map((r) => ({
+          id: r.id,
+          description: r.description,
+          startedAt: r.startedAt,
+          finishedAt: r.finishedAt,
+          status: r.finishedAt ? 'Завершено' : 'В процесі',
+        })),
+      };
     }
 
     const place = this.memoryPlaces.get(id);
@@ -410,30 +401,11 @@ export class ComputersService {
     };
 
     if (this.prisma.isConnected) {
-      try {
-        const created = await this.prisma.place.create({
-          data: placeData,
-          include: { zone: true },
-        });
-        const mapped = this.mapPlaceToResponse(created, created.zone);
-        this.memoryPlaces.set(mapped.id, {
-          id: mapped.id,
-          number: mapped.number,
-          name: mapped.name,
-          zoneId: mapped.zoneId,
-          status: 'вільно',
-          specs: mapped.specs,
-          coordinateX: mapped.coordinateX,
-          coordinateY: mapped.coordinateY,
-          row: mapped.row,
-          col: mapped.col,
-          createdAt: now,
-          updatedAt: now,
-        });
-        return mapped;
-      } catch (err) {
-        this.logger.warn(`Prisma create place fallback to memory: ${err.message}`);
-      }
+      const created = await this.prisma.place.create({
+        data: placeData,
+        include: { zone: true },
+      });
+      return this.mapPlaceToResponse(created, created.zone);
     }
 
     const fallbackPlace: InternalPlace = {
@@ -493,24 +465,12 @@ export class ComputersService {
     if (dto.col !== undefined) updateData.col = dto.col;
 
     if (this.prisma.isConnected) {
-      try {
-        const updated = await this.prisma.place.update({
-          where: { id },
-          data: updateData,
-          include: { zone: true },
-        });
-        const mapped = this.mapPlaceToResponse(updated, updated.zone);
-        const mem = this.memoryPlaces.get(id);
-        if (mem) {
-          Object.assign(mem, {
-            ...mapped,
-            updatedAt: new Date(),
-          });
-        }
-        return mapped;
-      } catch (err) {
-        this.logger.warn(`Prisma update place fallback to memory: ${err.message}`);
-      }
+      const updated = await this.prisma.place.update({
+        where: { id },
+        data: updateData,
+        include: { zone: true },
+      });
+      return this.mapPlaceToResponse(updated, updated.zone);
     }
 
     const memPlace = this.memoryPlaces.get(id);
@@ -577,26 +537,17 @@ export class ComputersService {
 
     // 3. Зберігаємо статус у БД або в пам'яті
     if (this.prisma.isConnected) {
-      try {
-        const prismaStatus = normalizeToPrismaStatus(targetStatus);
-        const updated = await this.prisma.place.update({
-          where: { id },
-          data: { status: prismaStatus },
-          include: { zone: true },
-        });
-        const mapped = this.mapPlaceToResponse(updated, updated.zone);
-        const mem = this.memoryPlaces.get(id);
-        if (mem) {
-          mem.status = targetStatus;
-          mem.updatedAt = now;
-        }
-        return {
-          ...mapped,
-          message: `Статус місця №${mapped.number} успішно змінено на "${targetStatus}"`,
-        };
-      } catch (err) {
-        this.logger.warn(`Prisma updateStatus fallback to memory: ${err.message}`);
-      }
+      const prismaStatus = normalizeToPrismaStatus(targetStatus);
+      const updated = await this.prisma.place.update({
+        where: { id },
+        data: { status: prismaStatus },
+        include: { zone: true },
+      });
+      const mapped = this.mapPlaceToResponse(updated, updated.zone);
+      return {
+        ...mapped,
+        message: `Статус місця №${mapped.number} успішно змінено на "${targetStatus}"`,
+      };
     }
 
     const memPlace = this.memoryPlaces.get(id);
@@ -619,15 +570,10 @@ export class ComputersService {
     await this.findById(id);
 
     if (this.prisma.isConnected) {
-      try {
-        await this.prisma.place.delete({
-          where: { id },
-        });
-        this.memoryPlaces.delete(id);
-        return { message: `Комп’ютер / місце з ID "${id}" успішно видалено` };
-      } catch (err) {
-        this.logger.warn(`Prisma delete place fallback to memory: ${err.message}`);
-      }
+      await this.prisma.place.delete({
+        where: { id },
+      });
+      return { message: `Комп’ютер / місце з ID "${id}" успішно видалено` };
     }
 
     this.memoryPlaces.delete(id);
@@ -640,42 +586,36 @@ export class ComputersService {
 
   async findAllRepairs(query?: { placeId?: string; activeOnly?: boolean }) {
     if (this.prisma.isConnected) {
-      try {
-        const where: any = {};
-        if (query?.placeId) {
-          where.placeId = query.placeId;
-        }
-        if (query?.activeOnly) {
-          where.finishedAt = null;
-        }
-
-        const repairs = await this.prisma.repair.findMany({
-          where,
-          include: {
-            place: {
-              include: { zone: true },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-        });
-
-        if (repairs && repairs.length > 0) {
-          return repairs.map((r) => ({
-            id: r.id,
-            placeId: r.placeId,
-            placeNumber: r.place.number,
-            placeName: r.place.name,
-            zoneName: r.place.zone.name,
-            description: r.description,
-            startedAt: r.startedAt,
-            finishedAt: r.finishedAt,
-            status: r.finishedAt ? 'Завершено' : 'В процесі',
-            createdAt: r.createdAt,
-          }));
-        }
-      } catch (err) {
-        this.logger.warn(`Prisma findAllRepairs fallback to memory: ${err.message}`);
+      const where: any = {};
+      if (query?.placeId) {
+        where.placeId = query.placeId;
       }
+      if (query?.activeOnly) {
+        where.finishedAt = null;
+      }
+
+      const repairs = await this.prisma.repair.findMany({
+        where,
+        include: {
+          place: {
+            include: { zone: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return repairs.map((r) => ({
+        id: r.id,
+        placeId: r.placeId,
+        placeNumber: r.place.number,
+        placeName: r.place.name,
+        zoneName: r.place.zone.name,
+        description: r.description,
+        startedAt: r.startedAt,
+        finishedAt: r.finishedAt,
+        status: (r.finishedAt ? 'Завершено' : 'В процесі') as 'Завершено' | 'В процесі',
+        createdAt: r.createdAt,
+      }));
     }
 
     let items = Array.from(this.memoryRepairs.values());
@@ -732,41 +672,28 @@ export class ComputersService {
     const now = new Date();
 
     if (this.prisma.isConnected) {
-      try {
-        const updated = await this.prisma.repair.update({
-          where: { id: repairId },
-          data: {
-            finishedAt: now,
-            ...(dto?.notes ? { description: { set: undefined } } : {}),
-          },
-          include: {
-            place: true,
-          },
-        });
-        placeId = updated.placeId;
+      const updated = await this.prisma.repair.update({
+        where: { id: repairId },
+        data: {
+          finishedAt: now,
+          ...(dto?.notes ? { description: { set: undefined } } : {}),
+        },
+        include: {
+          place: true,
+        },
+      });
+      placeId = updated.placeId;
 
-        // Повертаємо ПК у статус 'вільно'
-        await this.prisma.place.update({
-          where: { id: placeId },
-          data: { status: PlaceStatus.FREE },
-        });
+      // Повертаємо ПК у статус 'вільно'
+      await this.prisma.place.update({
+        where: { id: placeId },
+        data: { status: PlaceStatus.FREE },
+      });
 
-        const mem = this.memoryRepairs.get(repairId);
-        if (mem) {
-          mem.finishedAt = now;
-        }
-        const memP = this.memoryPlaces.get(placeId);
-        if (memP) {
-          memP.status = 'вільно';
-        }
-
-        return {
-          message: `Ремонт #${repairId} успішно завершено. Місце повернуто в статус "вільно".`,
-          repair: updated,
-        };
-      } catch (err) {
-        this.logger.warn(`Prisma finishRepair fallback to memory: ${err.message}`);
-      }
+      return {
+        message: `Ремонт #${repairId} успішно завершено. Місце повернуто в статус "вільно".`,
+        repair: updated,
+      };
     }
 
     const memRepair = this.memoryRepairs.get(repairId);
@@ -793,27 +720,21 @@ export class ComputersService {
     const now = new Date();
 
     if (this.prisma.isConnected) {
-      try {
-        const created = await this.prisma.repair.create({
-          data: {
-            placeId,
-            description,
-            startedAt: now,
-          },
-        });
-        const internalRepair: InternalRepair = {
-          id: created.id,
-          placeId: created.placeId,
-          description: created.description,
-          startedAt: created.startedAt,
-          finishedAt: created.finishedAt,
-          createdAt: created.createdAt,
-        };
-        this.memoryRepairs.set(internalRepair.id, internalRepair);
-        return internalRepair;
-      } catch (err) {
-        this.logger.warn(`Prisma create repair fallback to memory: ${err.message}`);
-      }
+      const created = await this.prisma.repair.create({
+        data: {
+          placeId,
+          description,
+          startedAt: now,
+        },
+      });
+      return {
+        id: created.id,
+        placeId: created.placeId,
+        description: created.description,
+        startedAt: created.startedAt,
+        finishedAt: created.finishedAt,
+        createdAt: created.createdAt,
+      };
     }
 
     const newRepair: InternalRepair = {
@@ -832,19 +753,16 @@ export class ComputersService {
     const now = new Date();
 
     if (this.prisma.isConnected) {
-      try {
-        await this.prisma.repair.updateMany({
-          where: {
-            placeId,
-            finishedAt: null,
-          },
-          data: {
-            finishedAt: now,
-          },
-        });
-      } catch (err) {
-        this.logger.warn(`Prisma finishActiveRepairRecord fallback to memory: ${err.message}`);
-      }
+      await this.prisma.repair.updateMany({
+        where: {
+          placeId,
+          finishedAt: null,
+        },
+        data: {
+          finishedAt: now,
+        },
+      });
+      return;
     }
 
     for (const r of this.memoryRepairs.values()) {
@@ -856,20 +774,16 @@ export class ComputersService {
 
   private async ensureUniqueNumber(num: number, excludeId?: string) {
     if (this.prisma.isConnected) {
-      try {
-        const conflict = await this.prisma.place.findFirst({
-          where: {
-            number: num,
-            ...(excludeId ? { NOT: { id: excludeId } } : {}),
-          },
-        });
-        if (conflict) {
-          throw new ConflictException(`Місце з номером ${num} уже існує в базі`);
-        }
-        return;
-      } catch (err) {
-        if (err instanceof ConflictException) throw err;
+      const conflict = await this.prisma.place.findFirst({
+        where: {
+          number: num,
+          ...(excludeId ? { NOT: { id: excludeId } } : {}),
+        },
+      });
+      if (conflict) {
+        throw new ConflictException(`Місце з номером ${num} уже існує в базі`);
       }
+      return;
     }
 
     for (const p of this.memoryPlaces.values()) {

@@ -89,57 +89,51 @@ export class ZonesService {
 
   async findAll(deviceType?: DeviceType) {
     if (this.prisma.isConnected) {
-      try {
-        const where: any = {};
-        if (deviceType) {
-          where.deviceType = deviceType;
-        }
-
-        const zones = await this.prisma.zone.findMany({
-          where,
-          include: {
-            places: {
-              select: {
-                id: true,
-                status: true,
-              },
-            },
-            tariffs: true,
-          },
-          orderBy: { createdAt: 'asc' },
-        });
-
-        if (zones && zones.length > 0) {
-          return zones.map((z) => {
-            const totalComputers = z.places.length;
-            const availableComputers = z.places.filter(
-              (p) => p.status === PlaceStatus.FREE || (p.status as any) === 'вільно',
-            ).length;
-
-            return {
-              id: z.id,
-              name: z.name,
-              description: z.description,
-              deviceType: z.deviceType,
-              baseHourlyRate: Number(z.baseHourlyRate),
-              colorHex: z.colorHex,
-              totalComputers,
-              availableComputers,
-              tariffs: z.tariffs.map((t) => ({
-                id: t.id,
-                name: t.name,
-                price: Number(t.price),
-                durationMinutes: t.durationMinutes,
-                type: t.type,
-              })),
-              createdAt: z.createdAt,
-              updatedAt: z.updatedAt,
-            };
-          });
-        }
-      } catch (err) {
-        this.logger.warn(`Prisma findAll zones fallback to memory: ${err.message}`);
+      const where: any = {};
+      if (deviceType) {
+        where.deviceType = deviceType;
       }
+
+      const zones = await this.prisma.zone.findMany({
+        where,
+        include: {
+          places: {
+            select: {
+              id: true,
+              status: true,
+            },
+          },
+          tariffs: true,
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      return zones.map((z) => {
+        const totalComputers = z.places.length;
+        const availableComputers = z.places.filter(
+          (p) => p.status === PlaceStatus.FREE || (p.status as any) === 'вільно',
+        ).length;
+
+        return {
+          id: z.id,
+          name: z.name,
+          description: z.description,
+          deviceType: z.deviceType,
+          baseHourlyRate: Number(z.baseHourlyRate),
+          colorHex: z.colorHex,
+          totalComputers,
+          availableComputers,
+          tariffs: z.tariffs.map((t) => ({
+            id: t.id,
+            name: t.name,
+            price: Number(t.price),
+            durationMinutes: t.durationMinutes,
+            type: t.type,
+          })),
+          createdAt: z.createdAt,
+          updatedAt: z.updatedAt,
+        };
+      });
     }
 
     let items = Array.from(this.memoryZones.values());
@@ -157,38 +151,36 @@ export class ZonesService {
 
   async findById(id: string) {
     if (this.prisma.isConnected) {
-      try {
-        const zone = await this.prisma.zone.findUnique({
-          where: { id },
-          include: {
-            places: true,
-            tariffs: true,
-          },
-        });
-        if (zone) {
-          const totalComputers = zone.places.length;
-          const availableComputers = zone.places.filter(
-            (p) => p.status === PlaceStatus.FREE || (p.status as any) === 'вільно',
-          ).length;
-
-          return {
-            id: zone.id,
-            name: zone.name,
-            description: zone.description,
-            deviceType: zone.deviceType,
-            baseHourlyRate: Number(zone.baseHourlyRate),
-            colorHex: zone.colorHex,
-            totalComputers,
-            availableComputers,
-            places: zone.places,
-            tariffs: zone.tariffs,
-            createdAt: zone.createdAt,
-            updatedAt: zone.updatedAt,
-          };
-        }
-      } catch (err) {
-        this.logger.warn(`Prisma findById zone fallback to memory: ${err.message}`);
+      const zone = await this.prisma.zone.findUnique({
+        where: { id },
+        include: {
+          places: true,
+          tariffs: true,
+        },
+      });
+      if (!zone) {
+        throw new NotFoundException(`Ігрову зону з ID "${id}" не знайдено`);
       }
+
+      const totalComputers = zone.places.length;
+      const availableComputers = zone.places.filter(
+        (p) => p.status === PlaceStatus.FREE || (p.status as any) === 'вільно',
+      ).length;
+
+      return {
+        id: zone.id,
+        name: zone.name,
+        description: zone.description,
+        deviceType: zone.deviceType,
+        baseHourlyRate: Number(zone.baseHourlyRate),
+        colorHex: zone.colorHex,
+        totalComputers,
+        availableComputers,
+        places: zone.places,
+        tariffs: zone.tariffs,
+        createdAt: zone.createdAt,
+        updatedAt: zone.updatedAt,
+      };
     }
 
     const zone = this.memoryZones.get(id);
@@ -221,23 +213,15 @@ export class ZonesService {
     };
 
     if (this.prisma.isConnected) {
-      try {
-        const created = await this.prisma.zone.create({
-          data: zoneData,
-        });
-        const mapped = {
-          ...created,
-          baseHourlyRate: Number(created.baseHourlyRate),
-        };
-        this.memoryZones.set(mapped.id, mapped);
-        return {
-          ...mapped,
-          totalComputers: 0,
-          availableComputers: 0,
-        };
-      } catch (err) {
-        this.logger.warn(`Prisma create zone fallback to memory: ${err.message}`);
-      }
+      const created = await this.prisma.zone.create({
+        data: zoneData,
+      });
+      return {
+        ...created,
+        baseHourlyRate: Number(created.baseHourlyRate),
+        totalComputers: 0,
+        availableComputers: 0,
+      };
     }
 
     const newZone: InternalZone = {
@@ -270,24 +254,16 @@ export class ZonesService {
     if (dto.colorHex !== undefined) updateData.colorHex = dto.colorHex.trim();
 
     if (this.prisma.isConnected) {
-      try {
-        const updated = await this.prisma.zone.update({
-          where: { id },
-          data: updateData as any,
-        });
-        const mapped = {
-          ...updated,
-          baseHourlyRate: Number(updated.baseHourlyRate),
-        };
-        this.memoryZones.set(id, mapped);
-        return {
-          ...mapped,
-          totalComputers: existing.totalComputers,
-          availableComputers: existing.availableComputers,
-        };
-      } catch (err) {
-        this.logger.warn(`Prisma update zone fallback to memory: ${err.message}`);
-      }
+      const updated = await this.prisma.zone.update({
+        where: { id },
+        data: updateData as any,
+      });
+      return {
+        ...updated,
+        baseHourlyRate: Number(updated.baseHourlyRate),
+        totalComputers: existing.totalComputers,
+        availableComputers: existing.availableComputers,
+      };
     }
 
     const memZone = this.memoryZones.get(id);
@@ -307,15 +283,10 @@ export class ZonesService {
     await this.findById(id);
 
     if (this.prisma.isConnected) {
-      try {
-        await this.prisma.zone.delete({
-          where: { id },
-        });
-        this.memoryZones.delete(id);
-        return { message: `Зону з ID "${id}" успішно видалено` };
-      } catch (err) {
-        this.logger.warn(`Prisma delete zone fallback to memory: ${err.message}`);
-      }
+      await this.prisma.zone.delete({
+        where: { id },
+      });
+      return { message: `Зону з ID "${id}" успішно видалено` };
     }
 
     this.memoryZones.delete(id);
@@ -326,20 +297,16 @@ export class ZonesService {
     const lower = name.toLowerCase();
 
     if (this.prisma.isConnected) {
-      try {
-        const conflict = await this.prisma.zone.findFirst({
-          where: {
-            name: { equals: name, mode: 'insensitive' },
-            ...(excludeId ? { NOT: { id: excludeId } } : {}),
-          },
-        });
-        if (conflict) {
-          throw new ConflictException(`Ігрова зона з назвою "${name}" вже існує`);
-        }
-        return;
-      } catch (err) {
-        if (err instanceof ConflictException) throw err;
+      const conflict = await this.prisma.zone.findFirst({
+        where: {
+          name: { equals: name, mode: 'insensitive' },
+          ...(excludeId ? { NOT: { id: excludeId } } : {}),
+        },
+      });
+      if (conflict) {
+        throw new ConflictException(`Ігрова зона з назвою "${name}" вже існує`);
       }
+      return;
     }
 
     for (const z of this.memoryZones.values()) {
